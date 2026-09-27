@@ -14,7 +14,7 @@ class ExerciseResult:
 
 
 class Exercise:
-    def init(self, title: str, algorithm: Algorithm, test_data: List[T]):
+    def __init__(self, title: str, algorithm: Algorithm, test_data: List[T]):
         self.title = title
         self.algorithm = algorithm
         self.test_data = test_data

@@ -2,7 +2,7 @@ from datetime import datetime
 
 
 class ProgressTracker:
-    def init(self, student_name: str):
+    def __init__(self, student_name: str):
         self.student_name = student_name
         self.completed_exercises = {}
         self.total_time = 0.0
