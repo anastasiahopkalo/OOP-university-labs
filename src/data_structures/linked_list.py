@@ -30,12 +30,24 @@ class LinkedList(DataStructure[T]):
         self._size += 1
 
     def delete(self, position: int) -> T:
-        if position == 0 and self._head:
+        if self._head is None:
+            return None
+        if position == 0:
             data = self._head.data
             self._head = self._head.next
             self._size -= 1
             return data
-        return None
+        current = self._head
+        for _ in range(position - 1):
+            if current.next is None:
+                return None
+            current = current.next
+        if current.next is None:
+            return None
+        data = current.next.data
+        current.next = current.next.next
+        self._size -= 1
+        return data
 
     def find(self, target: T) -> int:
         current = self._head

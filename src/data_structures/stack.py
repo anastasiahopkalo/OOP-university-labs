@@ -32,6 +32,13 @@ class Stack(DataStructure[T]):
             return None
         return self._top.data
 
+    # Реалізація абстрактних методів базового класу
+    def insert(self, data: T, position: int = None):
+        self.push(data)
+
+    def delete(self, position: int = None) -> T:
+        return self.pop()
+
     def find(self, target: T) -> int:
         current = self._top
         index = 0

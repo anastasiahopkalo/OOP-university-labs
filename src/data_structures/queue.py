@@ -38,6 +38,13 @@ class Queue(DataStructure[T]):
             return None
         return self._head.data
 
+    # Реалізація абстрактних методів базового класу
+    def insert(self, data: T, position: int = None):
+        self.enqueue(data)
+
+    def delete(self, position: int = None) -> T:
+        return self.dequeue()
+
     def find(self, target: T) -> int:
         current = self._head
         index = 0
