@@ -1,0 +1,13 @@
+# created by virtualenv automatically
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+.venv
+.idea/
+.DS_Store
+*.egg-info/
+dist/
+build/
