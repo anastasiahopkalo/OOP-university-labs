@@ -1,21 +1,33 @@
-from PyQt5.QtCore import QSettings
+from pathlib import Path
+from typing import Optional
+
+from PyQt5.QtCore import QSettings, QStandardPaths
 from PyQt5.QtWidgets import QMainWindow, QTabWidget, QAction, QMessageBox, QApplication
 
 from src.gui.styles import THEMES, LIGHT, DARK, Theme, stylesheet
 from src.gui.panels.sorting_panel import SortingPanel
 from src.gui.panels.data_structures_panel import DataStructuresPanel
 from src.gui.panels.graph_panel import GraphPanel
+from src.gui.panels.exercise_panel import ExercisePanel
+from src.core.analytics import ProgressTracker
 from src.gui.panels.placeholder_panel import PlaceholderPanel
 
 APP_NAME = "CodeLearn Studio"
 
 
+def default_progress_path() -> Path:
+    base = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation) or str(Path.home() / ".codelearn")
+    return Path(base) / "progress.json"
+
+
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, progress_path: Optional[Path] = None):
         super().__init__()
         self.setWindowTitle(APP_NAME)
         self.resize(1200, 800)
         self._settings = QSettings("CodeLearn", "CodeLearnStudio")
+        self._progress_path = Path(progress_path) if progress_path else default_progress_path()
+        self.tracker = ProgressTracker.load(self._progress_path)
 
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
@@ -32,9 +44,10 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.data_structures_panel, "🌳 Структури даних")
         self.graph_panel = GraphPanel()
         self.tabs.addTab(self.graph_panel, "🕸 Графи")
+        self.exercise_panel = ExercisePanel(self.tracker)
+        self.exercise_panel.attemptRecorded.connect(self._on_attempt_recorded)
+        self.tabs.addTab(self.exercise_panel, "💻 Вправи")
         # Вкладки нижче поки заглушки - їх реалізація ще в роботі
-        self.tabs.addTab(PlaceholderPanel(
-            "Вправи", "Задачі з автоматичною перевіркою."), "💻 Вправи")
         self.tabs.addTab(PlaceholderPanel(
             "Прогрес", "Статистика та графіки навчання."), "📈 Прогрес")
 
@@ -81,6 +94,16 @@ class MainWindow(QMainWindow):
         self.dark_action.setChecked(theme is DARK)
         self.apply_theme(theme)
         self.tabs.setCurrentIndex(int(self._settings.value("tab", 0)))
+
+    def _on_attempt_recorded(self, title: str, result):
+        self.save_progress()
+        self.statusBar().showMessage(f"{title}: {result.score}/100", 4000)
+
+    def save_progress(self):
+        try:
+            self.tracker.save(self._progress_path)
+        except OSError as error:
+            self.statusBar().showMessage(f"Не вдалося зберегти прогрес: {error}", 5000)
 
     def closeEvent(self, event):
         self._settings.setValue("geometry", self.saveGeometry())
