@@ -1,0 +1,7 @@
+# GUI (Lab 2)
+PyQt5>=5.15.10
+matplotlib>=3.8
+
+# Testing
+pytest>=8.0
+pytest-cov>=5.0
