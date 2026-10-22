@@ -1,7 +1,11 @@
 """
 CodeLearn Studio - Main Entry Point
-Simple test of all components
+
+    python main.py            # графічний інтерфейс (ЛР2)
+    python main.py --console  # консольна перевірка компонентів (ЛР1)
 """
+
+import sys
 
 from src import (
     QuickSort, MergeSort, BubbleSort,
@@ -10,7 +14,7 @@ from src import (
 )
 
 
-def main():
+def console_demo():
     print("=" * 70)
     print("CODELEARN STUDIO - Component Test")
     print("=" * 70)
@@ -86,5 +90,18 @@ def main():
     print("=" * 70)
 
 
+def run_gui():
+    from PyQt5.QtWidgets import QApplication
+    from src.gui.main_window import MainWindow
+
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    return app.exec_()
+
+
 if __name__ == "__main__":
-    main()
+    if "--console" in sys.argv:
+        console_demo()
+    else:
+        sys.exit(run_gui())
