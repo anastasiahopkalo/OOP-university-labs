@@ -117,6 +117,7 @@ class ExercisePanel(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         header = self.table.horizontalHeader()
+        header.setMinimumSectionSize(30)
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
         for col in (1, 2, 3):
             header.setSectionResizeMode(col, QHeaderView.Stretch)

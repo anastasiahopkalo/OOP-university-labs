@@ -78,6 +78,8 @@ def default_exercises() -> List[CodeExercise]:
                 TestCase(("(]",), False),
                 TestCase(("([)]",), False),
                 TestCase(("(((",), False),
+                TestCase((")",), False),
+                TestCase(("())",), False),
                 TestCase(("",), True),
             ],
             difficulty="Середня",
