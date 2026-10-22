@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QMainWindow, QTabWidget, QAction, QMessageBox, QAppl
 
 from src.gui.styles import THEMES, LIGHT, DARK, Theme, stylesheet
 from src.gui.panels.sorting_panel import SortingPanel
+from src.gui.panels.data_structures_panel import DataStructuresPanel
 from src.gui.panels.placeholder_panel import PlaceholderPanel
 
 APP_NAME = "CodeLearn Studio"
@@ -26,11 +27,9 @@ class MainWindow(QMainWindow):
     def _add_panels(self):
         self.sorting_panel = SortingPanel()
         self.tabs.addTab(self.sorting_panel, "📊 Сортування")
+        self.data_structures_panel = DataStructuresPanel()
+        self.tabs.addTab(self.data_structures_panel, "🌳 Структури даних")
         # Вкладки нижче поки заглушки - їх реалізація ще в роботі
-        self.tabs.addTab(PlaceholderPanel(
-            "Структури даних",
-            "Інтерактивна візуалізація BST, купи, хеш-таблиці, стеку та черги."),
-            "🌳 Структури даних")
         self.tabs.addTab(PlaceholderPanel(
             "Графи", "Побудова графа та анімація BFS, DFS і Дейкстри."), "🕸 Графи")
         self.tabs.addTab(PlaceholderPanel(
