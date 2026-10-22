@@ -77,7 +77,6 @@ pytest tests/ -v --cov=src
 ```
 
 The app opens a PyQt5 window with tabs: Sorting, Data Structures, Graphs, Exercises, Progress.
-Lab 2 task split: see [docs/LAB2_TASKS.md](docs/LAB2_TASKS.md).
 
 ## Team Structure (2 People)
 

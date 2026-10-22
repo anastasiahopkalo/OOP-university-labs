@@ -26,7 +26,7 @@ class MainWindow(QMainWindow):
     def _add_panels(self):
         self.sorting_panel = SortingPanel()
         self.tabs.addTab(self.sorting_panel, "📊 Сортування")
-        # Вкладки нижче - частина Анастасії (див. docs/LAB2_TASKS.md)
+        # Вкладки нижче поки заглушки - їх реалізація ще в роботі
         self.tabs.addTab(PlaceholderPanel(
             "Структури даних",
             "Інтерактивна візуалізація BST, купи, хеш-таблиці, стеку та черги."),
