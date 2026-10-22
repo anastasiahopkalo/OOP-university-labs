@@ -35,7 +35,7 @@ class Dijkstra(GraphAlgorithm):
             if current in self._visited:
                 continue
             self._visited.append(current)
-            self._frontier = [v for _, _, v in sorted(heap.get_all()) if v not in self._visited]
+            self._frontier = self._heap_frontier(heap)
             self._record_step(f"Фіксуємо {current}: відстань {dist}", "visit", current)
 
             for neighbour in graph.neighbors(current):
@@ -49,7 +49,7 @@ class Dijkstra(GraphAlgorithm):
                     self._parent[neighbour] = current
                     self._swaps += 1
                     heap.push((candidate, next(order), neighbour))
-                    self._frontier = [v for _, _, v in sorted(heap.get_all()) if v not in self._visited]
+                    self._frontier = self._heap_frontier(heap)
                     old_text = "∞" if old == float("inf") else old
                     self._record_step(f"Ребро {current}–{neighbour}: {old_text} → {candidate}",
                                       "relax", current, (current, neighbour))
@@ -59,6 +59,11 @@ class Dijkstra(GraphAlgorithm):
                                       "skip", current, (current, neighbour))
 
         return dict(self._distances)
+
+    def _heap_frontier(self, heap: BinaryHeap) -> List:
+        """Вершини в купі за зростанням відстані, без дублікатів і вже зафіксованих."""
+        ordered = (v for _, _, v in sorted(heap.get_all()) if v not in self._visited)
+        return list(dict.fromkeys(ordered))
 
     def path_to(self, target) -> List:
         """Найкоротший шлях від старту до target за результатами останнього execute()."""

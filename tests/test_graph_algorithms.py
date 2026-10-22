@@ -100,3 +100,11 @@ class TestCommon:
         n = len(algo.steps)
         algo.execute(graph, "A")
         assert len(algo.steps) == n
+
+
+def test_dijkstra_frontier_has_no_duplicates(graph):
+    algo = Dijkstra()
+    algo.execute(graph, "A")
+    for step in algo.steps:
+        assert len(step.frontier) == len(set(step.frontier))
+        assert not set(step.frontier) & set(step.visited)
