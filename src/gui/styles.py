@@ -121,4 +121,17 @@ def stylesheet(theme: Theme) -> str:
         QLabel#muted {{
             color: {t.muted};
         }}
+        QFrame#card {{
+            background: {t.surface};
+            border: 1px solid {t.border};
+            border-radius: 8px;
+        }}
+        QFrame#card QLabel {{
+            background: transparent;
+        }}
+        QLabel#cardValue {{
+            font-size: 22px;
+            font-weight: bold;
+            color: {t.accent};
+        }}
     """

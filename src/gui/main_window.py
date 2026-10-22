@@ -9,8 +9,8 @@ from src.gui.panels.sorting_panel import SortingPanel
 from src.gui.panels.data_structures_panel import DataStructuresPanel
 from src.gui.panels.graph_panel import GraphPanel
 from src.gui.panels.exercise_panel import ExercisePanel
+from src.gui.panels.dashboard_panel import DashboardPanel
 from src.core.analytics import ProgressTracker
-from src.gui.panels.placeholder_panel import PlaceholderPanel
 
 APP_NAME = "CodeLearn Studio"
 
@@ -47,9 +47,9 @@ class MainWindow(QMainWindow):
         self.exercise_panel = ExercisePanel(self.tracker)
         self.exercise_panel.attemptRecorded.connect(self._on_attempt_recorded)
         self.tabs.addTab(self.exercise_panel, "💻 Вправи")
-        # Вкладки нижче поки заглушки - їх реалізація ще в роботі
-        self.tabs.addTab(PlaceholderPanel(
-            "Прогрес", "Статистика та графіки навчання."), "📈 Прогрес")
+        self.dashboard_panel = DashboardPanel(self.tracker, self.exercise_panel.exercises)
+        self.dashboard_panel.progressReset.connect(self._on_progress_reset)
+        self.tabs.addTab(self.dashboard_panel, "📈 Прогрес")
 
     def _build_menu(self):
         file_menu = self.menuBar().addMenu("&Файл")
@@ -97,7 +97,13 @@ class MainWindow(QMainWindow):
 
     def _on_attempt_recorded(self, title: str, result):
         self.save_progress()
+        self.dashboard_panel.refresh()
         self.statusBar().showMessage(f"{title}: {result.score}/100", 4000)
+
+    def _on_progress_reset(self):
+        self.save_progress()
+        self.exercise_panel.refresh_list()
+        self.statusBar().showMessage("Прогрес скинуто", 3000)
 
     def save_progress(self):
         try:
