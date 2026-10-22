@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, TypeVar
+from typing import List, TypeVar, Any, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 
 T = TypeVar('T')
@@ -73,3 +73,65 @@ class SortingAlgorithm(Algorithm):
         step = AlgorithmStep(action, indices, self._comparisons, self._swaps,
                              kind, list(self._array))
         self._steps.append(step)
+
+
+@dataclass
+class GraphStep:
+    """Крок алгоритму на графі - знімок стану для покрокової анімації."""
+    action: str
+    # "visit", "edge", "discover", "skip", "relax", "done"
+    kind: str
+    current: Any = None
+    edge: Optional[Tuple[Any, Any]] = None
+    visited: List = field(default_factory=list)
+    frontier: List = field(default_factory=list)
+    distances: Dict = field(default_factory=dict)
+    tree_edges: List[Tuple[Any, Any]] = field(default_factory=list)
+    comparisons: int = 0
+
+
+class GraphAlgorithm(Algorithm):
+    """Шаблонний метод для алгоритмів на графах: execute() перевіряє вхід
+    і готує стан, а підкласи реалізують лише _run()."""
+
+    def __init__(self, name: str):
+        super().__init__(name)
+        self._visited: List = []
+        self._frontier: List = []
+        self._distances: Dict = {}
+        self._parent: Dict = {}
+
+    def execute(self, graph, start=None):
+        self._reset()
+        self._visited, self._frontier, self._distances, self._parent = [], [], {}, {}
+        if graph.size == 0:
+            return self._empty_result()
+        if start is None:
+            start = graph.vertices()[0]
+        if graph.find(start) == -1:
+            raise ValueError(f"Вершини {start!r} немає в графі")
+        result = self._run(graph, start)
+        self._record_step("Готово", "done")
+        return result
+
+    @abstractmethod
+    def _run(self, graph, start):
+        pass
+
+    def _empty_result(self):
+        return []
+
+    @property
+    def parents(self) -> Dict:
+        return dict(self._parent)
+
+    def tree_edges(self) -> List[Tuple[Any, Any]]:
+        """Ребра дерева обходу (або дерева найкоротших шляхів)."""
+        return [(p, v) for v, p in self._parent.items() if p is not None]
+
+    def _record_step(self, action: str, kind: str, current=None, edge=None):
+        self._steps.append(GraphStep(
+            action, kind, current, edge,
+            list(self._visited), list(self._frontier), dict(self._distances),
+            self.tree_edges(), self._comparisons,
+        ))
