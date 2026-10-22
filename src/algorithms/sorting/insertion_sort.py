@@ -8,10 +8,7 @@ class InsertionSort(SortingAlgorithm):
     def __init__(self):
         super().__init__("InsertionSort")
 
-    def execute(self, data: List[T]) -> List[T]:
-        arr = data.copy()
-        self._comparisons = 0
-        self._swaps = 0
+    def _sort(self, arr: List[T]) -> None:
         n = len(arr)
 
         for i in range(1, n):
@@ -20,10 +17,11 @@ class InsertionSort(SortingAlgorithm):
 
             while j >= 0:
                 self._comparisons += 1
+                self._record_step(f"Compare {arr[j]} and {key}", [j, j + 1], "compare")
                 if arr[j] > key:
                     arr[j + 1] = arr[j]
                     self._swaps += 1
-                    self._record_step(f"Shift {arr[j + 1]} to index {j + 1}", [j, j + 1])
+                    self._record_step(f"Shift {arr[j + 1]} to index {j + 1}", [j, j + 1], "set")
                     j -= 1
                 else:
                     break
@@ -31,6 +29,4 @@ class InsertionSort(SortingAlgorithm):
             if j + 1 != i:
                 arr[j + 1] = key
                 self._swaps += 1
-                self._record_step(f"Insert {key} at index {j + 1}", [j + 1])
-
-        return arr
+                self._record_step(f"Insert {key} at index {j + 1}", [j + 1], "set")

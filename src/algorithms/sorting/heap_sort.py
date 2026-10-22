@@ -7,10 +7,7 @@ class HeapSort(SortingAlgorithm):
     def __init__(self):
         super().__init__("HeapSort")
 
-    def execute(self, data: List[T]) -> List[T]:
-        arr = data.copy()
-        self._comparisons = 0
-        self._swaps = 0
+    def _sort(self, arr: List[T]) -> None:
         n = len(arr)
 
         def heapify(size: int, i: int):
@@ -20,11 +17,13 @@ class HeapSort(SortingAlgorithm):
 
             if left < size:
                 self._comparisons += 1
+                self._record_step(f"Compare {arr[left]} and {arr[largest]}", [left, largest], "compare")
                 if arr[left] > arr[largest]:
                     largest = left
 
             if right < size:
                 self._comparisons += 1
+                self._record_step(f"Compare {arr[right]} and {arr[largest]}", [right, largest], "compare")
                 if arr[right] > arr[largest]:
                     largest = right
 
@@ -42,5 +41,3 @@ class HeapSort(SortingAlgorithm):
             self._swaps += 1
             self._record_step(f"Swap {arr[0]} <-> {arr[i]}", [0, i])
             heapify(i, 0)
-
-        return arr
