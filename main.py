@@ -3,6 +3,7 @@ CodeLearn Studio - Main Entry Point
 
     python main.py            # графічний інтерфейс (ЛР2)
     python main.py --console  # консольна перевірка компонентів (ЛР1)
+    python main.py --concurrency  # демо неблокуючих структур даних
 """
 
 import sys
@@ -103,5 +104,8 @@ def run_gui():
 if __name__ == "__main__":
     if "--console" in sys.argv:
         console_demo()
+    elif "--concurrency" in sys.argv:
+        from src.data_structures.concurrent.demo import main as concurrency_demo
+        concurrency_demo()
     else:
         sys.exit(run_gui())
