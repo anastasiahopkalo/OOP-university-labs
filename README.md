@@ -1,275 +1,140 @@
 # CodeLearn Studio
 
-Interactive platform for learning algorithms and data structures with real-time visualization and progress tracking.
+Desktop application for learning algorithms and data structures through step-by-step
+visualization, interactive data structures, coding exercises with automatic checking,
+and progress tracking. Works fully offline.
 
-## Overview
+![Graph algorithms](screenshots/graphs.png)
 
-CodeLearn Studio is a desktop application that helps students understand how algorithms work through step-by-step visualization, practical exercises, and progress monitoring. Instead of just reading code or watching videos, students see algorithms executing in real-time, write their own implementations, and track their learning progress.
+## Why
 
-## The Problem We're Solving
+Students struggle with algorithms because they can't see how data changes step by step,
+don't get immediate feedback on their own code, and can't track their progress.
+CodeLearn Studio puts visualization, practice and progress into one local application.
 
-Students struggle to understand algorithms because:
-- They can't see how data changes step by step
-- There's no way to practice and get immediate feedback
-- Progress is hard to track across different topics
-- They need a tool that works offline and locally
+| Feature | Visualgo | HackerRank | CodeLearn Studio |
+|---------|----------|------------|------------------|
+| Works offline | No | No | **Yes** |
+| Step-by-step visualization | Yes | No | **Yes** |
+| Built-in exercises with auto-check | No | Yes | **Yes** |
+| Progress tracking | No | Yes | **Yes** |
+| Open source | No | No | **Yes** |
 
-## Comparison with Existing Solutions
+## Features
 
-| Feature | Visualgo | AlgoVisualizer | HackerRank | CodeLearn Studio |
-|---------|----------|----------------|-----------|-----------------|
-| Offline usage | No | No | No | **Yes** |
-| Local installation | No | No | No | **Yes** |
-| Built-in exercises | No | Minimal | Yes | **Yes** |
-| Progress tracking | No | No | Yes | **Yes** |
-| Open source | No | Partial | No | **Yes** |
-| Easy deployment | No | No | No | **Yes** |
+The GUI is built with **PyQt5** (custom drawing with `QPainter`, charts with `matplotlib`).
+Light and dark themes (`Ctrl+T`); window size, theme and the last tab are remembered.
 
-Our solution is better because you can run it on any computer without internet, customize it, and most importantly, students can see the full learning journey in one integrated application.
+| Tab | What it does |
+|-----|--------------|
+| 📊 **Sorting** | Bubble, Insertion, Merge, Quick and Heap sort. Play / pause / step forward / step back, speed slider, random or custom input, comparison and swap counters, step log, complexity hints. |
+| 🌳 **Data structures** | Binary search tree (search path highlighting, traversals, height), min/max heap (tree + array view), hash table (buckets, collisions, resizing, load factor), stack, queue, singly linked list. Insert / delete / find / random fill. |
+| 🕸 **Graphs** | Build a graph with the mouse (click to add a vertex, click two vertices to connect them, drag to move) or with the form; weighted and directed graphs. Animated **BFS**, **DFS** and **Dijkstra** with a levels / order / distances table and shortest path highlighting. |
+| 💻 **Exercises** | 7 tasks from easy to hard with hints. Code editor with Python syntax highlighting and auto-indent. Solutions run in a separate process with a time limit, so an infinite loop never freezes the app. Results table with expected / actual / time for every test. |
+| 📈 **Progress** | Solved exercises, attempts, average score, success rate, day streak, `matplotlib` charts and achievements. Progress is saved to a JSON file between sessions. |
 
-## What It Does
+| Sorting | Data structures |
+|---------|-----------------|
+| ![Sorting](screenshots/sorting.png) | ![Data structures](screenshots/data_structures.png) |
+| **Exercises** | **Progress** |
+| ![Exercises](screenshots/exercises.png) | ![Progress](screenshots/dashboard.png) |
 
-### For Students
-1. **Visualize Algorithms** - Watch QuickSort, BubbleSort, Dijkstra's algorithm execute step by step
-2. **Do Exercises** - Write code directly in the app and test it against predefined test cases
-3. **Track Progress** - See graphs showing learning progress, topics mastered, and achievements
+### Non-blocking data structures (bonus)
 
-### Technical Features
-- Step-by-step animation of 5+ sorting algorithms
-- 7+ data structures (linked lists, stacks, queues, trees, graphs)
-- Code editor with built-in testing framework
-- Local SQLite database to store user progress
-- Dashboard with performance charts
-- Support for running 100+ test cases simultaneously
+`src/data_structures/concurrent/` contains concurrent structures that don't use mutual
+exclusion locks in their algorithms:
 
-## How to Run
+- **`LockFreeStack`**: Treiber stack.
+- **`LockFreeQueue`**: Michael–Scott queue (with "helping" a lagging tail).
+- **`SPSCRingBuffer`**: single-producer / single-consumer ring buffer in
+  `multiprocessing.shared_memory`, exchanging data between two **processes** using only
+  head/tail indices.
 
-### Requirements
-- Python 3.10+
-- pip
+CPython does not expose a hardware compare-and-swap instruction, so `AtomicReference`
+emulates CAS with a minimal critical section around a single comparison and assignment.
+The stack and queue algorithms themselves never hold a lock while working: they prepare
+the change and publish it with one CAS, retrying on conflict. On free-threaded Python
+(3.13t+) the threads really run in parallel.
 
-### Installation
 ```bash
-# Clone the repository
+python main.py --concurrency
+```
+
+## How to run
+
+Requirements: Python 3.10+.
+
+```bash
 git clone https://github.com/anastasiahopkalo/OOP-university-labs.git
 cd OOP-university-labs
 
-# Create virtual environment
 python -m venv .venv
-
-# Activate it
-# On Windows:
-.venv\Scripts\activate
-# On macOS/Linux:
-source .venv/bin/activate
-
-# Install dependencies
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-# Run the application (GUI)
-python main.py
+python main.py                     # GUI
+python main.py --console           # console demo of the Lab 1 components
+python main.py --concurrency       # non-blocking data structures demo
 
-# Console demo of Lab 1 components
-python main.py --console
-
-# Run tests
-pytest tests/ -v --cov=src
+pytest                             # tests (GUI tests run headless)
+pytest --cov=src                   # with coverage
 ```
 
-The app opens a PyQt5 window with tabs: Sorting, Data Structures, Graphs, Exercises, Progress.
+PyCharm picks up `requirements.txt` automatically and offers to install the dependencies.
 
-## Team Structure (2 People)
-
-This project is designed for a 2-person team with clear responsibilities:
-
-**Person 1: Backend Developer**
-- Implements all 12+ classes and algorithms
-- Creates exercise testing logic
-- Manages the database for storing progress
-- Writes unit tests for all components
-- Covers: Sorting algorithms, Search algorithms, Data structures, Classes hierarchy
-
-**Person 2: Frontend Developer**
-- Builds the PyQt5 GUI with all three panels
-- Integrates matplotlib for progress charts
-- Creates the visualization system for animating algorithms
-- Implements styling and user experience
-- Connects backend logic to UI through signals/slots
-
-Both work on Git together, making commits regularly. No conflicts - they work in separate modules.
-
-## How This Covers Three Lab Assignments
-
-### Lab 1: Object-Oriented Programming
-The backend developer implements the OOP requirements:
-- 12+ classes: Algorithm (abstract), SortingAlgorithm, QuickSort, MergeSort, BubbleSort, DataStructure, LinkedList, DynamicArray, Visualizer, Exercise, ProgressTracker, and more
-- 2 inheritance hierarchies: Algorithm tree and DataStructure tree
-- Polymorphism: Abstract methods, generic types with TypeVar, method overriding
-- 25+ non-trivial methods across all classes
-- Proper encapsulation with private/protected/public members
-- Unit tests covering 70%+ of the code
-
-### Lab 2: GUI Development
-The frontend developer implements the PyQt5 requirements:
-- Main window with three tabs (QTabWidget)
-- VisualizationPanel: Choose algorithm, play/pause/step animations, adjust speed
-- ExercisePanel: Code editor, run tests, view results in a table
-- DashboardPanel: Progress bar, matplotlib charts, achievements list
-- 3+ additional features: Dark theme, real-time statistics, code history
-- Signals and slots connecting UI to backend logic
-- Professional, clean interface
-
-### Lab 3: Using External Libraries
-Both developers use 6 external libraries across the project:
-1. **PyQt5** - The entire GUI framework (frontend)
-2. **matplotlib** - Graphs and charts in the dashboard (frontend)
-3. **SQLAlchemy** - Database models and queries (backend)
-4. **pytest** - Unit testing framework (backend)
-5. **networkx** - Graph algorithms implementation (backend)
-6. **numpy** - Numerical operations for advanced algorithms (backend)
-
-These aren't random choices - each solves a real problem in the architecture.
-
-## Technologies Used
-
-### Frontend Stack
-- **PyQt5**: Professional desktop GUI framework
-- **matplotlib**: Scientific plotting library integrated into PyQt5
-- **Python 3.8+**: Core language
-
-### Backend Stack
-- **SQLAlchemy ORM**: Maps Python classes to database tables
-- **SQLite**: Lightweight, file-based database (no server needed)
-- **NetworkX**: Library for graph algorithms
-- **numpy**: Numerical operations
-
-### Development Tools
-- **pytest**: Unit testing with fixtures and parametrization
-- **Git**: Version control with 25-30 meaningful commits
-- **PEP8**: Code style guide followed throughout
-
-## Project Statistics
+## Project structure
 
 ```
-Total Classes: 12+
-Total Methods: 25+
-Lines of Code: ~2000
-  - Core logic: ~500
-  - Algorithms: ~400
-  - GUI: ~600
-  - Database: ~150
-  - Tests: ~300
-
-Test Coverage: 70%+
-Git Commits: 25-30
-Development Time: 40-50 hours
-```
-
-## File Structure
-
-```
-CodeLearnStudio/
+├── main.py                          # entry point (GUI / --console / --concurrency)
+├── requirements.txt
+├── pytest.ini
+├── screenshots/
 ├── src/
-│   ├── core/              # OOP architecture (Lab 1)
-│   │   ├── algorithm.py
-│   │   ├── data_structure.py
-│   │   ├── visualizer.py
-│   │   └── exercise.py
-│   ├── algorithms/        # Sorting, searching, graphs
-│   │   ├── sorting/
-│   │   ├── searching/
-│   │   └── graphs/
-│   ├── gui/               # PyQt5 interface (Lab 2)
-│   │   ├── main_window.py
-│   │   ├── visualization_panel.py
-│   │   ├── exercise_panel.py
-│   │   └── dashboard_panel.py
-│   └── database/          # SQLAlchemy models (Lab 3)
-│       ├── models.py
-│       └── database.py
-├── tests/                 # Unit tests
-│   ├── test_algorithms.py
-│   └── test_data_structures.py
-└── main.py               # Entry point
+│   ├── core/
+│   │   ├── algorithm.py             # Algorithm, SortingAlgorithm, GraphAlgorithm, step records
+│   │   ├── data_structure.py        # DataStructure[T] (ABC, Generic)
+│   │   ├── exercise.py              # BaseExercise, Exercise, CodeExercise, TestCase
+│   │   ├── exercise_catalog.py      # the exercises
+│   │   ├── sandbox.py               # runs user code in a separate process with a timeout
+│   │   ├── analytics.py             # ProgressTracker (history, streak, JSON storage)
+│   │   └── achievements.py
+│   ├── algorithms/
+│   │   ├── sorting/                 # bubble, insertion, merge, quick, heap
+│   │   └── graphs/                  # BFS, DFS, Dijkstra
+│   ├── data_structures/             # linked list, dynamic array, stack, queue,
+│   │   │                            # BST, binary heap, hash table, graph
+│   │   └── concurrent/              # lock-free stack/queue, SPSC ring buffer
+│   └── gui/
+│       ├── main_window.py
+│       ├── styles.py                # Theme dataclass + generated QSS
+│       ├── step_player.py           # Qt-independent step navigation
+│       ├── structure_controllers.py # one controller per data structure
+│       ├── panels/                  # one panel per tab
+│       └── widgets/                 # canvases, playback bar, code editor
+└── tests/
 ```
 
-## Key Features Explained
+## OOP design
 
-### Visualization Panel
-Shows an algorithm executing step by step. Users can:
-- Select which algorithm to watch (QuickSort, MergeSort, BubbleSort, etc.)
-- Play the animation at normal or custom speed
-- Step forward or backward through each operation
-- See highlighted elements being compared or swapped
-- View metrics like number of comparisons and swaps
+- **Hierarchies:** `Algorithm` → `SortingAlgorithm` → 5 sorts; `Algorithm` → `GraphAlgorithm` →
+  BFS / DFS / Dijkstra; `DataStructure[T]` → 10 structures; `BaseExercise` → `Exercise` /
+  `CodeExercise`; `VisualizationCanvas` → `BarCanvas`, `GraphCanvas`, `StructureCanvas` →
+  `TreeCanvas` → `BSTCanvas` / `HeapCanvas`, …; `StructureController` → 6 controllers.
+- **Template method:** `SortingAlgorithm.execute()` → `_sort()`, `GraphAlgorithm.execute()` → `_run()`.
+- **Polymorphism:** the data structures tab works with every structure through the same
+  `StructureController` interface; every canvas only implements `draw()`; generics with `TypeVar`.
+- **Reuse:** BFS uses our `Queue`, Dijkstra uses our `BinaryHeap` as the priority queue.
 
-### Exercise Panel
-Lets students write and test code:
-- Pre-written exercises for each data structure
-- Code editor where students write their solution
-- Click "Run" to execute against 10-20 test cases
-- See results in a table (passed/failed, execution time)
-- Can submit for scoring
+## Team
 
-### Dashboard Panel
-Tracks overall progress:
-- Visual progress bar showing course completion
-- Line chart showing learning over days
-- List of achievements unlocked
-- Statistics: total exercises solved, average score, learning streak
+| Lab 2 | Daniil Ilchyshyn | Anastasia Hopkalo |
+|-------|------------------|-------------------|
+| Repository | `.gitignore`, `requirements.txt`, tests moved to `tests/` | README, screenshots |
+| Core | Step recording for sorting (template method) | `GraphAlgorithm`, BFS / DFS / Dijkstra, code exercises, sandbox, progress tracker, achievements |
+| Data structures | BST, binary heap, hash table, graph | Lock-free stack and queue, SPSC ring buffer (bonus) |
+| GUI | Main window, themes, base canvas, sorting tab | Data structures, graphs, exercises and progress tabs |
 
-## Why This Design Works
+## Lab 3 plan
 
-1. **Clear Separation**: Backend and frontend are independent. Backend implements business logic, frontend just displays it.
-2. **Scalable**: Easy to add new algorithms (inherit from Algorithm class), new exercises (add to database), new charts (extend visualizer).
-3. **Educational**: Students learn real software engineering: OOP patterns, database design, GUI development, testing.
-4. **Practical**: The application actually works and teaches something useful.
-
-## How to Use It
-
-1. Open the application (`python main.py`)
-2. Click "Visualization" tab to watch algorithms
-3. Click "Exercises" tab to write code
-4. Click "Dashboard" to see progress
-5. Pick an algorithm, run the visualization
-6. Solve exercises and watch your score increase
-7. Check the dashboard to see improvement over time
-
-## Dependencies
-
-```
-PyQt5>=5.15.0
-matplotlib>=3.3.0
-SQLAlchemy>=1.4.0
-pytest>=6.2.0
-networkx>=2.6.0
-numpy>=1.19.0
-```
-
-## Testing
-
-Run unit tests with coverage:
-```bash
-pytest tests/ -v --cov=src --cov-report=html
-```
-
-This generates an HTML report showing exactly which parts of the code are tested.
-
-## Development Notes
-
-- The project follows PEP8 style guide
-- All classes have docstrings explaining their purpose
-- Each major change is committed to Git with a clear message
-- Abstract base classes (ABC) enforce contracts for subclasses
-- Database queries use ORM to prevent SQL injection
-- Tests use pytest fixtures for clean, reusable test code
-
-## Conclusion
-
-CodeLearn Studio demonstrates solid understanding of:
-- Object-oriented programming (inheritance, polymorphism, encapsulation)
-- Desktop application development (PyQt5)
-- Database management (SQLAlchemy ORM)
-- Professional software practices (testing, version control, documentation)
-
-The application solves a real problem (understanding algorithms) in a practical way that students can actually use.
+External libraries: `matplotlib` (already used for the progress charts), `SQLAlchemy`
+for storing progress, `networkx` for graph layouts, `pytest` / `pytest-cov`.
