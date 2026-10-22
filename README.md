@@ -45,35 +45,39 @@ Our solution is better because you can run it on any computer without internet, 
 ## How to Run
 
 ### Requirements
-- Python 3.8+
+- Python 3.10+
 - pip
 
 ### Installation
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/CodeLearnStudio.git
-cd CodeLearnStudio
+git clone https://github.com/anastasiahopkalo/OOP-university-labs.git
+cd OOP-university-labs
 
 # Create virtual environment
-python -m venv venv
+python -m venv .venv
 
 # Activate it
 # On Windows:
-venv\Scripts\activate
+.venv\Scripts\activate
 # On macOS/Linux:
-source venv/bin/activate
+source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the application
+# Run the application (GUI)
 python main.py
+
+# Console demo of Lab 1 components
+python main.py --console
 
 # Run tests
 pytest tests/ -v --cov=src
 ```
 
-The app will open a desktop window with three tabs: Visualization, Exercises, and Dashboard.
+The app opens a PyQt5 window with tabs: Sorting, Data Structures, Graphs, Exercises, Progress.
+Lab 2 task split: see [docs/LAB2_TASKS.md](docs/LAB2_TASKS.md).
 
 ## Team Structure (2 People)
 
