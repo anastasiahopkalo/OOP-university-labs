@@ -96,6 +96,9 @@ def run_gui():
     from src.gui.main_window import MainWindow
 
     app = QApplication(sys.argv)
+    # Від назв залежить папка, де зберігається прогрес (progress.json)
+    app.setOrganizationName("CodeLearn")
+    app.setApplicationName("CodeLearnStudio")
     window = MainWindow()
     window.show()
     return app.exec_()
