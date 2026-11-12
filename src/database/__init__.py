@@ -5,9 +5,10 @@ from src.database.repository import (
     DEFAULT_STUDENT, ProgressRepository, JsonProgressRepository, SqlProgressRepository,
     migrate_json_to_sql,
 )
+from src.database.run_repository import AlgorithmRunRepository
 
 __all__ = [
     "Base", "Student", "ExerciseAttempt", "AlgorithmRun", "Database",
     "DEFAULT_STUDENT", "ProgressRepository", "JsonProgressRepository", "SqlProgressRepository",
-    "migrate_json_to_sql",
+    "migrate_json_to_sql", "AlgorithmRunRepository",
 ]
