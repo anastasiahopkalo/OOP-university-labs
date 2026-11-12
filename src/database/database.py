@@ -60,7 +60,14 @@ class Database:
             session.close()
 
     def dispose(self) -> None:
+        """Закриває всі з'єднання пулу."""
         self._engine.dispose()
+
+    def __enter__(self) -> "Database":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.dispose()
 
 
 def _enable_foreign_keys(dbapi_connection, _record) -> None:

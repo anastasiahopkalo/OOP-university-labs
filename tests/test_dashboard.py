@@ -103,10 +103,10 @@ class TestDashboardPanel:
         assert empty.solved_card.value_label.text() == "0 / 7"
 
 
-def test_main_window_reset_saves_to_repository(app):
+def test_main_window_reset_saves_to_repository(app, make_db):
     from src.gui.main_window import MainWindow
-    from src.database import Database, SqlProgressRepository
-    repo = SqlProgressRepository(Database())
+    from src.database import SqlProgressRepository
+    repo = SqlProgressRepository(make_db())
     tracker = ProgressTracker("x")
     tracker.record_attempt("Максимальний елемент", result(100))
     repo.save(tracker)
@@ -116,10 +116,10 @@ def test_main_window_reset_saves_to_repository(app):
     assert repo.load("x").total_attempts() == 0
 
 
-def test_main_window_switch_student(app):
+def test_main_window_switch_student(app, make_db):
     from src.gui.main_window import MainWindow
-    from src.database import Database, SqlProgressRepository
-    repo = SqlProgressRepository(Database())
+    from src.database import SqlProgressRepository
+    repo = SqlProgressRepository(make_db())
     tracker = ProgressTracker("A")
     tracker.record_attempt("Максимальний елемент", result(100))
     repo.save(tracker)
@@ -133,10 +133,10 @@ def test_main_window_switch_student(app):
     assert window.dashboard_panel.solved_card.value_label.text() == "1 / 7"
 
 
-def test_main_window_picks_existing_student(app):
+def test_main_window_picks_existing_student(app, make_db):
     from src.gui.main_window import MainWindow
-    from src.database import Database, SqlProgressRepository
-    repo = SqlProgressRepository(Database())
+    from src.database import SqlProgressRepository
+    repo = SqlProgressRepository(make_db())
     repo.create_student("Єдиний")
     window = MainWindow(repo)
     assert window.student_name in repo.list_students()

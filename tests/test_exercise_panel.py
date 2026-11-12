@@ -101,14 +101,14 @@ class TestCodeEditor:
 
 
 class TestMainWindowProgress:
-    def test_attempt_saved_to_database(self, app, tmp_path):
+    def test_attempt_saved_to_database(self, app, tmp_path, make_db):
         from src.gui.main_window import MainWindow
-        from src.database import Database, SqlProgressRepository
+        from src.database import SqlProgressRepository
         path = tmp_path / "codelearn.db"
-        window = MainWindow(SqlProgressRepository(Database.from_path(path)), student="Даніїл")
+        window = MainWindow(SqlProgressRepository(make_db(path)), student="Даніїл")
         panel = window.exercise_panel
         panel.list_widget.setCurrentRow(0)
         run_and_wait(app, panel, "def solve(numbers):\n    return max(numbers)\n")
         # Нове підключення до того самого файлу бачить збережену спробу
-        reopened = SqlProgressRepository(Database.from_path(path))
+        reopened = SqlProgressRepository(make_db(path))
         assert reopened.load("Даніїл").best_score("Максимальний елемент") == 100

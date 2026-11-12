@@ -7,7 +7,7 @@ from src.core.benchmark import (
     INPUT_GENERATORS, Benchmark, BenchmarkResult, NearlySortedInput, RandomInput, ReversedInput,
     SortedInput, estimate_complexity, make_sizes, series,
 )
-from src.database import AlgorithmRunRepository, Database, SqlProgressRepository
+from src.database import AlgorithmRunRepository, SqlProgressRepository
 
 
 class TestInputGenerators:
@@ -106,8 +106,8 @@ class TestBenchmark:
 
 
 class TestRunRepository:
-    def test_save_and_filter(self):
-        db = Database()
+    def test_save_and_filter(self, make_db):
+        db = make_db()
         SqlProgressRepository(db).create_student("Даніїл")
         repo = AlgorithmRunRepository(db)
         results = Benchmark([BubbleSort, QuickSort], [10, 20], generator=RandomInput(), repeats=2).run()

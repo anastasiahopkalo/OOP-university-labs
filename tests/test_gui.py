@@ -63,10 +63,10 @@ class TestSortingPanel:
 
 
 class TestMainWindow:
-    def test_tabs_and_theme(self, app):
+    def test_tabs_and_theme(self, app, make_db):
         from src.gui.main_window import MainWindow
-        from src.database import Database, SqlProgressRepository
-        window = MainWindow(SqlProgressRepository(Database()))
+        from src.database import SqlProgressRepository
+        window = MainWindow(SqlProgressRepository(make_db()))
         assert window.tabs.count() >= 5
         window.apply_theme(DARK)
         assert window.sorting_panel.canvas.theme is DARK

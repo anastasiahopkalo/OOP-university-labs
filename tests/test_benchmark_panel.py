@@ -8,7 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 QtWidgets = pytest.importorskip("PyQt5.QtWidgets")
 
 from src.core.benchmark import BenchmarkResult  # noqa: E402
-from src.database import AlgorithmRunRepository, Database, SqlProgressRepository  # noqa: E402
+from src.database import AlgorithmRunRepository, SqlProgressRepository  # noqa: E402
 from src.gui.styles import DARK  # noqa: E402
 
 
@@ -81,9 +81,9 @@ def test_metric_switch_updates_table(panel):
     panel.set_theme(DARK)
 
 
-def test_results_saved_to_database(app):
+def test_results_saved_to_database(app, make_db):
     from src.gui.panels.benchmark_panel import BenchmarkPanel
-    db = Database()
+    db = make_db()
     SqlProgressRepository(db).create_student("Даніїл")
     runs = AlgorithmRunRepository(db)
     panel = BenchmarkPanel(runs, lambda: "Даніїл")
@@ -100,9 +100,9 @@ def test_results_saved_to_database(app):
     assert "Збережено в БД: 2" in panel.status.text()
 
 
-def test_main_window_has_benchmark_tab(app):
+def test_main_window_has_benchmark_tab(app, make_db):
     from src.gui.main_window import MainWindow
-    window = MainWindow(SqlProgressRepository(Database()))
+    window = MainWindow(SqlProgressRepository(make_db()))
     titles = [window.tabs.tabText(i) for i in range(window.tabs.count())]
     assert any("Порівняння" in t for t in titles)
     assert window.benchmark_panel._runs is not None
