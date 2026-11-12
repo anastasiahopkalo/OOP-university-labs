@@ -61,6 +61,10 @@ class GraphCanvas(VisualizationCanvas):
         m = self.RADIUS + 14
         return QRectF(self.rect()).adjusted(m, m, -m, -m)
 
+    def drawing_area(self) -> QRectF:
+        """Прямокутник, у який відображаються позиції вершин (частки 0..1)."""
+        return self._area()
+
     def _point(self, vertex) -> QPointF:
         fx, fy = self._positions.get(vertex, (0.5, 0.5))
         area = self._area()

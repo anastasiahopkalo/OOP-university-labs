@@ -124,3 +124,47 @@ class TestGraphPanel:
         assert panel.graph.size == 7
         panel.playback.toggle_play()
         assert panel.algo_combo.isEnabled()
+
+
+class TestNetworkxIntegration:
+    def test_generate_graph(self, panel):
+        panel.generator_combo.setCurrentText("Повний граф")
+        panel.vertex_count.setValue(5)
+        panel.generate_graph()
+        assert panel.graph.size == 5
+        assert len(panel.graph.edges()) == 10
+        assert set(panel.positions) == set(panel.graph.vertices())
+        assert all(0 <= x <= 1 and 0 <= y <= 1 for x, y in panel.positions.values())
+        assert panel.start_combo.count() == 5
+        assert "щільність: 1.00" in panel.metrics_label.text()
+
+    def test_generated_graph_keeps_direction(self, panel):
+        panel.directed_check.setChecked(True)
+        panel.generator_combo.setCurrentText("Випадкове дерево")
+        panel.generate_graph()
+        assert panel.graph.directed
+
+    @pytest.mark.parametrize("index", range(5))
+    def test_layouts_move_vertices(self, panel, index):
+        before = dict(panel.positions)
+        panel.layout_combo.setCurrentIndex(index)
+        panel.apply_layout()
+        assert set(panel.positions) == set(before)
+        assert all(0 <= x <= 1 and 0 <= y <= 1 for x, y in panel.positions.values())
+
+    def test_algorithm_runs_after_generation(self, panel):
+        panel.generate_graph()
+        panel.algo_combo.setCurrentIndex(2)  # Дейкстра
+        run_to_end(panel)
+        assert panel._player.current.kind == "done"
+
+    def test_metrics_text(self, panel):
+        assert "Вершин: 7" in panel.metrics_text()
+        assert "зв'язний" in panel.metrics_text()
+        panel.clear_graph()
+        assert panel.metrics_label.text() == "Граф порожній"
+
+    def test_buttons_disabled_while_playing(self, panel):
+        panel._set_editing_enabled(False)
+        assert not panel.generate_btn.isEnabled() and not panel.arrange_btn.isEnabled()
+        panel._set_editing_enabled(True)

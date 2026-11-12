@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QCheckBox,
-    QLineEdit, QDoubleSpinBox, QProgressBar, QPlainTextEdit, QTableWidget,
+    QLineEdit, QDoubleSpinBox, QSpinBox, QProgressBar, QPlainTextEdit, QTableWidget,
     QTableWidgetItem, QHeaderView, QMessageBox, QSplitter
 )
 from PyQt5.QtCore import Qt
@@ -12,6 +12,7 @@ from PyQt5.QtCore import Qt
 from src.algorithms.graphs.bfs import BFS
 from src.algorithms.graphs.dfs import DFS
 from src.algorithms.graphs.dijkstra import Dijkstra
+from src.algorithms.graphs.nx_adapter import GENERATORS, LAYOUTS, compute_layout, graph_metrics
 from src.core.algorithm import GraphAlgorithm, GraphStep
 from src.data_structures.graph import Graph
 from src.gui.step_player import StepPlayer
@@ -94,6 +95,35 @@ class GraphPanel(QWidget):
         edit_row.addStretch()
         layout.addLayout(edit_row)
 
+        # Рядок networkx: розкладка і генерація графів
+        nx_row = QHBoxLayout()
+        nx_row.addWidget(QLabel("Розкладка:"))
+        self.layout_combo = QComboBox()
+        self.layout_combo.addItems(LAYOUTS)
+        nx_row.addWidget(self.layout_combo)
+        self.arrange_btn = QPushButton("Впорядкувати")
+        self.arrange_btn.clicked.connect(self.apply_layout)
+        nx_row.addWidget(self.arrange_btn)
+        nx_row.addSpacing(16)
+        nx_row.addWidget(QLabel("Згенерувати:"))
+        self.generator_combo = QComboBox()
+        self.generator_combo.addItems(GENERATORS)
+        nx_row.addWidget(self.generator_combo)
+        nx_row.addWidget(QLabel("Вершин:"))
+        self.vertex_count = QSpinBox()
+        self.vertex_count.setRange(1, 40)
+        self.vertex_count.setValue(10)
+        nx_row.addWidget(self.vertex_count)
+        nx_row.addWidget(QLabel("Seed:"))
+        self.seed_spin = QSpinBox()
+        self.seed_spin.setRange(0, 9999)
+        nx_row.addWidget(self.seed_spin)
+        self.generate_btn = QPushButton("Створити")
+        self.generate_btn.clicked.connect(self.generate_graph)
+        nx_row.addWidget(self.generate_btn)
+        nx_row.addStretch()
+        layout.addLayout(nx_row)
+
         hint = QLabel("Клік на порожньому місці - нова вершина · клік на дві вершини - ребро з вагою "
                       "з поля «Вага» · перетягування - переміщення вершини")
         hint.setObjectName("muted")
@@ -155,6 +185,9 @@ class GraphPanel(QWidget):
         self.frontier_label = QLabel()
         self.frontier_label.setObjectName("muted")
         layout.addWidget(self.frontier_label)
+        self.metrics_label = QLabel()
+        self.metrics_label.setObjectName("muted")
+        layout.addWidget(self.metrics_label)
 
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
@@ -235,6 +268,44 @@ class GraphPanel(QWidget):
         self._select(None)
         self._graph_changed()
 
+    # ---------- networkx ----------
+
+    def apply_layout(self, layout: Optional[str] = None):
+        """Розставляє вершини розкладкою networkx (у частках полотна)."""
+        layout = layout or self.layout_combo.currentText()
+        # Вершини мають не накладатися в пікселях, тож враховуємо реальний розмір полотна
+        area = self.canvas.drawing_area()
+        width, height = max(area.width(), 1.0), max(area.height(), 1.0)
+        self.positions = compute_layout(self.graph, layout, seed=self.seed_spin.value(),
+                                        aspect=width / height,
+                                        min_distance=2.6 * GraphCanvas.RADIUS / height)
+        self._graph_changed()
+
+    def generate_graph(self):
+        """Створює випадковий граф вибраним генератором networkx і розкладає його."""
+        generator = GENERATORS[self.generator_combo.currentText()]
+        generated = generator.generate(self.vertex_count.value(), seed=self.seed_spin.value())
+        self.graph = Graph(directed=self.directed_check.isChecked())
+        for vertex in generated.vertices():
+            self.graph.add_vertex(vertex)
+        for u, v, w in generated.edges():
+            self.graph.add_edge(u, v, w)
+        self._select(None)
+        self.apply_layout()
+
+    def metrics_text(self) -> str:
+        m = graph_metrics(self.graph)
+        if m["vertices"] == 0:
+            return "Граф порожній"
+        parts = [f"Вершин: {m['vertices']}", f"ребер: {m['edges']}",
+                 "зв'язний" if m["connected"] else f"компонент: {m['components']}",
+                 f"щільність: {m['density']:.2f}"]
+        if m["diameter"] is not None:
+            parts.append(f"діаметр: {m['diameter']}")
+        if m["acyclic"]:
+            parts.append("без циклів" if self.graph.directed else "ліс (без циклів)")
+        return "networkx · " + " · ".join(parts)
+
     def set_directed(self, directed: bool):
         """Перебудовує граф з тими самими ребрами, але іншою орієнтованістю."""
         old = self.graph
@@ -254,6 +325,7 @@ class GraphPanel(QWidget):
         self.start_combo.setCurrentIndex(max(index, 0))
         self.start_combo.blockSignals(False)
         self.canvas.set_graph(self.graph, self.positions)
+        self.metrics_label.setText(self.metrics_text())
         self._prepare()
 
     # ---------- миша ----------
@@ -300,7 +372,8 @@ class GraphPanel(QWidget):
         self._render()
 
     def _set_editing_enabled(self, enabled: bool):
-        for widget in (self.algo_combo, self.start_combo, self.directed_check, self.remove_btn):
+        for widget in (self.algo_combo, self.start_combo, self.directed_check, self.remove_btn,
+                       self.arrange_btn, self.generate_btn):
             widget.setEnabled(enabled)
 
     def _render(self):

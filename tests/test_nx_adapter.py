@@ -8,7 +8,8 @@ from src.algorithms.graphs.dfs import DFS
 from src.algorithms.graphs.dijkstra import Dijkstra
 from src.algorithms.graphs.nx_adapter import (
     GENERATORS, LAYOUTS, CompleteGenerator, GridGenerator, RandomGraphGenerator, TreeGenerator,
-    compute_layout, from_networkx, graph_metrics, normalize_positions, to_networkx, vertex_names,
+    compute_layout, from_networkx, graph_metrics, normalize_positions, spread_positions, to_networkx,
+    vertex_names,
 )
 from src.data_structures.graph import Graph
 
@@ -65,6 +66,20 @@ class TestLayouts:
         single = Graph()
         single.add_vertex("A")
         assert compute_layout(single, "Спектральна (spectral)") == {"A": (0.5, 0.5)}
+
+    def test_spread_separates_close_vertices(self):
+        pos = spread_positions({"a": (0.5, 0.5), "b": (0.5, 0.5), "c": (0.52, 0.5)}, min_distance=0.1)
+        points = list(pos.values())
+        for i, p in enumerate(points):
+            for q in points[i + 1:]:
+                assert ((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2) ** 0.5 >= 0.1 - 1e-6
+        far = {"a": (0.1, 0.1), "b": (0.9, 0.9)}
+        assert spread_positions(far) == far
+
+    def test_spread_respects_aspect(self):
+        # На полотні 4:1 вертикальна відстань 0.1 - це в 4 рази менше пікселів, ніж горизонтальна
+        pos = spread_positions({"a": (0.5, 0.45), "b": (0.5, 0.55)}, min_distance=0.15, aspect=4)
+        assert abs(pos["a"][1] - pos["b"][1]) >= 0.15 - 1e-6
 
     def test_spring_layout_is_reproducible(self):
         g = RandomGraphGenerator().generate(8, seed=3)

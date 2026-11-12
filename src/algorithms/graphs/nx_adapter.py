@@ -71,8 +71,50 @@ def normalize_positions(positions: Positions, margin: float = 0.08) -> Positions
             for v, p in positions.items()}
 
 
-def compute_layout(graph: Graph, layout: str, seed: int = 0) -> Positions:
-    """Позиції вершин у частках полотна для вибраної розкладки."""
+def spread_positions(positions: Positions, min_distance: float = 0.09, margin: float = 0.08,
+                     aspect: float = 1.0, iterations: int = 80) -> Positions:
+    """Розсуває вершини, ближчі за min_distance, щоб кружечки на полотні не накладались.
+
+    aspect = ширина / висота полотна: відстані рахуються в одиницях висоти,
+    тому на широкому полотні вершини розходяться більше по горизонталі.
+    """
+    aspect = max(aspect, 1e-6)
+    # Переходимо в простір, де одиниця по x і по y має однакову довжину в пікселях
+    points = {v: [x * aspect, y] for v, (x, y) in positions.items()}
+    vertices = list(points)
+    for _ in range(iterations):
+        moved = False
+        for i, a in enumerate(vertices):
+            for b in vertices[i + 1:]:
+                pa, pb = points[a], points[b]
+                dx, dy = pb[0] - pa[0], pb[1] - pa[1]
+                dist = (dx * dx + dy * dy) ** 0.5
+                if dist >= min_distance:
+                    continue
+                if dist < 1e-9:  # однакові точки - розводимо в сталому напрямку
+                    dx, dy, dist = 1.0, 0.0, 1.0
+                push = (min_distance - dist) / 2 + 1e-4
+                ux, uy = dx / dist * push, dy / dist * push
+                pa[0] -= ux
+                pa[1] -= uy
+                pb[0] += ux
+                pb[1] += uy
+                moved = True
+        for p in points.values():
+            p[0] = min(max(p[0], margin * aspect), (1 - margin) * aspect)
+            p[1] = min(max(p[1], margin), 1 - margin)
+        if not moved:
+            break
+    return {v: (x / aspect, y) for v, (x, y) in points.items()}
+
+
+def compute_layout(graph: Graph, layout: str, seed: int = 0, aspect: float = 1.0,
+                   min_distance: float = 0.12, margin: float = 0.03) -> Positions:
+    """Позиції вершин у частках полотна для вибраної розкладки.
+
+    aspect - ширина / висота полотна, min_distance - мінімальна відстань між вершинами
+    в одиницях висоти полотна (див. spread_positions).
+    """
     if graph.size == 0:
         return {}
     nx_graph = to_networkx(graph)
@@ -82,7 +124,7 @@ def compute_layout(graph: Graph, layout: str, seed: int = 0) -> Positions:
         positions = LAYOUTS[layout](nx_graph, seed)
     except (nx.NetworkXException, ValueError, ImportError):
         positions = nx.circular_layout(nx_graph)
-    return normalize_positions(positions)
+    return spread_positions(normalize_positions(positions, margin), min_distance, margin, aspect)
 
 
 # ---------- генератори ----------
