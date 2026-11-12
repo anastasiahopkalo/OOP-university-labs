@@ -11,6 +11,7 @@ from src.gui.panels.graph_panel import GraphPanel
 from src.gui.panels.exercise_panel import ExercisePanel
 from src.gui.panels.dashboard_panel import DashboardPanel
 from src.gui.panels.benchmark_panel import BenchmarkPanel
+from src.gui.student_dialog import StudentDialog
 from src.database import (
     DEFAULT_STUDENT, AlgorithmRunRepository, Database, ProgressRepository, SqlProgressRepository, migrate_json_to_sql,
 )
@@ -54,6 +55,7 @@ class MainWindow(QMainWindow):
         self._add_panels()
         self._build_menu()
         self.statusBar().showMessage("Готово")
+        self._update_title()
 
         self._restore_settings()
 
@@ -71,12 +73,19 @@ class MainWindow(QMainWindow):
         self.exercise_panel = ExercisePanel(self.tracker)
         self.exercise_panel.attemptRecorded.connect(self._on_attempt_recorded)
         self.tabs.addTab(self.exercise_panel, "💻 Вправи")
-        self.dashboard_panel = DashboardPanel(self.tracker, self.exercise_panel.exercises)
+        leaderboard = (self.repository.leaderboard
+                       if isinstance(self.repository, SqlProgressRepository) else None)
+        self.dashboard_panel = DashboardPanel(self.tracker, self.exercise_panel.exercises, leaderboard)
         self.dashboard_panel.progressReset.connect(self._on_progress_reset)
         self.tabs.addTab(self.dashboard_panel, "📈 Прогрес")
 
     def _build_menu(self):
         file_menu = self.menuBar().addMenu("&Файл")
+        student_action = QAction("Студент…", self)
+        student_action.setShortcut("Ctrl+U")
+        student_action.triggered.connect(self.open_student_dialog)
+        file_menu.addAction(student_action)
+        file_menu.addSeparator()
         quit_action = QAction("Вихід", self)
         quit_action.setShortcut("Ctrl+Q")
         quit_action.triggered.connect(self.close)
@@ -161,7 +170,24 @@ class MainWindow(QMainWindow):
         self.exercise_panel.refresh_list()
         self.dashboard_panel.refresh()
         self._settings.setValue("student", name)
+        self._update_title()
         self.statusBar().showMessage(f"Студент: {name}", 3000)
+
+    def _update_title(self):
+        self.setWindowTitle(f"{APP_NAME} — {self.student_name}")
+
+    def open_student_dialog(self) -> StudentDialog:
+        """Показує діалог студентів; якщо вибрано іншого - перемикається на нього."""
+        dialog = StudentDialog(self.repository, self.student_name, self)
+        dialog.finished.connect(lambda _: self._on_student_dialog_closed(dialog))
+        dialog.open()
+        return dialog
+
+    def _on_student_dialog_closed(self, dialog: StudentDialog):
+        if dialog.selected_student:
+            self.switch_student(dialog.selected_student)
+        else:
+            self.dashboard_panel.refresh()  # могли з'явитися або зникнути студенти в рейтингу
 
     def save_progress(self):
         try:
