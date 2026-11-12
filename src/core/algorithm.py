@@ -56,6 +56,8 @@ class SortingAlgorithm(Algorithm):
     def __init__(self, name: str):
         super().__init__(name)
         self._array = []
+        # Для бенчмарку кроки вимикають: знімок масиву на кожному кроці - це O(n) пам'яті й часу
+        self.record_steps = True
 
     def execute(self, data: List[T]) -> List[T]:
         self._reset()
@@ -70,6 +72,8 @@ class SortingAlgorithm(Algorithm):
         pass
 
     def _record_step(self, action: str, indices: List[int], kind: str = "swap"):
+        if not self.record_steps:
+            return
         step = AlgorithmStep(action, indices, self._comparisons, self._swaps,
                              kind, list(self._array))
         self._steps.append(step)

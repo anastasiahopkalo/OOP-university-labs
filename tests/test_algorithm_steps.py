@@ -42,3 +42,17 @@ class TestAlgorithmSteps:
         algo = algo_cls()
         algo.execute([6, 1, 4, 2, 9, 3])
         assert {s.kind for s in algo.steps} <= {"compare", "swap", "set", "done"}
+
+
+@pytest.mark.parametrize("cls", [BubbleSort, InsertionSort, MergeSort, QuickSort, HeapSort])
+def test_step_recording_can_be_disabled(cls):
+    data = [5, 3, 8, 1, 9, 2]
+    recorded = cls()
+    recorded.execute(data)
+    silent = cls()
+    silent.record_steps = False
+    assert silent.execute(data) == sorted(data)
+    assert silent.steps == []
+    # лічильники операцій рахуються однаково
+    assert silent.get_statistics()["comparisons"] == recorded.get_statistics()["comparisons"]
+    assert silent.get_statistics()["swaps"] == recorded.get_statistics()["swaps"]
