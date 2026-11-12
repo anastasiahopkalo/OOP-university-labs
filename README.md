@@ -33,7 +33,7 @@ the last tab and the current student are remembered between sessions.
 | 🌳 **Data structures** | Binary search tree (search path highlighting, traversals, height), min/max heap (tree + array view), hash table (buckets, collisions, resizing, load factor), stack, queue, singly linked list. Insert / delete / find / random fill. |
 | 🕸 **Graphs** | Build a graph with the mouse (click to add a vertex, click two vertices to connect them, drag to move) or with the form; weighted and directed graphs. Generate random graphs (Erdős–Rényi, tree, grid, complete) and arrange them with `networkx` layouts (spring, circular, shell, Kamada–Kawai, spectral). Animated **BFS**, **DFS** and **Dijkstra** with a levels / order / distances table and shortest path highlighting; graph metrics (connectivity, components, diameter, density). |
 | 💻 **Exercises** | 7 tasks from easy to hard with hints. Code editor with Python syntax highlighting and auto-indent. Solutions run in a separate process with a time limit, so an infinite loop never freezes the app. Results table with expected / actual / time for every test. |
-| 📈 **Progress** | Statistics cards (solved exercises, attempts, average score, success rate, day streak). **Results:** score charts and achievements. **Knowledge graph:** course topics with prerequisites, coloured as mastered / available / locked, and a recommendation of what to study next. **Activity and leaderboard:** attempts over the last 14 days and a ranking of all students. |
+| 📈 **Progress** | Statistics cards (solved exercises, attempts, average score, success rate, day streak). **Results:** score charts and achievements. **Knowledge graph:** course topics with prerequisites, coloured as mastered / available / locked, and a recommendation of what to study next. **Activity and leaderboard:** attempts over the last 14 days and a ranking of all students. **Algorithm comparison:** the student's latest saved benchmark from the database, average time of every algorithm at the largest *n*. |
 
 **Students.** *File → Student…* (`Ctrl+U`) creates, selects and deletes student profiles;
 every student has their own progress. The window title shows the current student.
@@ -45,8 +45,10 @@ every student has their own progress. The window title shows the current student
 | ![Sorting](screenshots/sorting.png) | ![Data structures](screenshots/data_structures.png) |
 | **Exercises** | **Progress** |
 | ![Exercises](screenshots/exercises.png) | ![Progress](screenshots/dashboard.png) |
-| **Activity and leaderboard** | **Students** |
-| ![Activity](screenshots/activity.png) | ![Students](screenshots/students.png) |
+| **Activity and leaderboard** | **Saved benchmark results** |
+| ![Activity](screenshots/activity.png) | ![Saved benchmark results](screenshots/benchmark_history.png) |
+| **Students** | |
+| ![Students](screenshots/students.png) | |
 
 ### Non-blocking data structures
 
@@ -155,7 +157,7 @@ PyCharm picks up `requirements.txt` automatically and offers to install the depe
 │       ├── structure_controllers.py # one controller per data structure
 │       ├── panels/                  # one panel per tab
 │       └── widgets/                 # canvases, playback bar, code editor
-└── tests/                           # 589 tests, ~90% coverage
+└── tests/                           # 594 tests, ~90% coverage
 ```
 
 ## OOP design
@@ -189,7 +191,7 @@ PyCharm picks up `requirements.txt` automatically and offers to install the depe
 |------|------------------|-------------------|
 | Core | Exercises, progress tracker, console entry point, step recording for sorting, numpy benchmark and complexity estimation | `Algorithm` / `SortingAlgorithm` / `DataStructure` base classes, the 5 sorting algorithms, `GraphAlgorithm`, BFS / DFS / Dijkstra, code exercises, sandbox, achievements, knowledge graph |
 | Data structures | BST, binary heap, hash table, graph | Linked list, dynamic array, stack, queue, lock-free stack and queue, SPSC ring buffer, networkx adapter, layouts and generators |
-| Database | SQLAlchemy models, repositories, JSON → SQLite migration | Student profiles UI, leaderboard |
+| Database | SQLAlchemy models, repositories, JSON → SQLite migration | Student profiles UI, leaderboard, benchmark history on the dashboard |
 | GUI | Main window, themes, base canvas, sorting and comparison tabs | Data structures, graphs, exercises and progress tabs |
 | Quality | Tests for the core, database and benchmark; retrospective on PyQt5, SQLAlchemy, numpy | Shared fixtures, networkx cross-checks, GUI tests; retrospective on matplotlib, networkx, pytest; README |
 
