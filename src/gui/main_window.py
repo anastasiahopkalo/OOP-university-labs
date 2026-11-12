@@ -10,8 +10,9 @@ from src.gui.panels.data_structures_panel import DataStructuresPanel
 from src.gui.panels.graph_panel import GraphPanel
 from src.gui.panels.exercise_panel import ExercisePanel
 from src.gui.panels.dashboard_panel import DashboardPanel
+from src.gui.panels.benchmark_panel import BenchmarkPanel
 from src.database import (
-    DEFAULT_STUDENT, Database, ProgressRepository, SqlProgressRepository, migrate_json_to_sql,
+    DEFAULT_STUDENT, AlgorithmRunRepository, Database, ProgressRepository, SqlProgressRepository, migrate_json_to_sql,
 )
 
 APP_NAME = "CodeLearn Studio"
@@ -59,6 +60,10 @@ class MainWindow(QMainWindow):
     def _add_panels(self):
         self.sorting_panel = SortingPanel()
         self.tabs.addTab(self.sorting_panel, "📊 Сортування")
+        runs = (AlgorithmRunRepository(self.repository.database)
+                if isinstance(self.repository, SqlProgressRepository) else None)
+        self.benchmark_panel = BenchmarkPanel(runs, lambda: self.student_name)
+        self.tabs.addTab(self.benchmark_panel, "⏱ Порівняння")
         self.data_structures_panel = DataStructuresPanel()
         self.tabs.addTab(self.data_structures_panel, "🌳 Структури даних")
         self.graph_panel = GraphPanel()
@@ -165,6 +170,8 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Не вдалося зберегти прогрес: {error}", 5000)
 
     def closeEvent(self, event):
+        self.benchmark_panel.stop()
+        self.benchmark_panel.wait(5000)
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("tab", self.tabs.currentIndex())
         self._settings.setValue("student", self.student_name)
