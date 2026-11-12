@@ -2,9 +2,12 @@
 PyQt5>=5.15.10
 matplotlib>=3.8
 
-# Database and numeric computations (Lab 3)
+# Database, numeric computations and graphs (Lab 3)
 SQLAlchemy>=2.0
 numpy>=1.26
+networkx>=3.2
+# required by networkx for the Kamada-Kawai layout
+scipy>=1.11
 
 # Testing
 pytest>=8.0
