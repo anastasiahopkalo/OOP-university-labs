@@ -101,12 +101,14 @@ class TestCodeEditor:
 
 
 class TestMainWindowProgress:
-    def test_attempt_saved_to_file(self, app, tmp_path):
+    def test_attempt_saved_to_database(self, app, tmp_path):
         from src.gui.main_window import MainWindow
-        path = tmp_path / "progress.json"
-        window = MainWindow(progress_path=path)
+        from src.database import Database, SqlProgressRepository
+        path = tmp_path / "codelearn.db"
+        window = MainWindow(SqlProgressRepository(Database.from_path(path)), student="Даніїл")
         panel = window.exercise_panel
         panel.list_widget.setCurrentRow(0)
         run_and_wait(app, panel, "def solve(numbers):\n    return max(numbers)\n")
-        assert path.exists()
-        assert ProgressTracker.load(path).best_score("Максимальний елемент") == 100
+        # Нове підключення до того самого файлу бачить збережену спробу
+        reopened = SqlProgressRepository(Database.from_path(path))
+        assert reopened.load("Даніїл").best_score("Максимальний елемент") == 100

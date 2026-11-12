@@ -10,24 +10,43 @@ from src.gui.panels.data_structures_panel import DataStructuresPanel
 from src.gui.panels.graph_panel import GraphPanel
 from src.gui.panels.exercise_panel import ExercisePanel
 from src.gui.panels.dashboard_panel import DashboardPanel
-from src.core.analytics import ProgressTracker
+from src.database import (
+    DEFAULT_STUDENT, Database, ProgressRepository, SqlProgressRepository, migrate_json_to_sql,
+)
 
 APP_NAME = "CodeLearn Studio"
 
 
-def default_progress_path() -> Path:
+def app_data_dir() -> Path:
     base = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation) or str(Path.home() / ".codelearn")
-    return Path(base) / "progress.json"
+    return Path(base)
+
+
+def default_progress_path() -> Path:
+    """JSON-файл прогресу з ЛР2 - лише для одноразового імпорту в БД."""
+    return app_data_dir() / "progress.json"
+
+
+def default_database_path() -> Path:
+    return app_data_dir() / "codelearn.db"
+
+
+def default_repository() -> SqlProgressRepository:
+    """SQLite-БД у папці даних застосунку; старий progress.json переноситься в неї."""
+    repository = SqlProgressRepository(Database.from_path(default_database_path()))
+    migrate_json_to_sql(default_progress_path(), repository)
+    return repository
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, progress_path: Optional[Path] = None):
+    def __init__(self, repository: Optional[ProgressRepository] = None,
+                 student: Optional[str] = None):
         super().__init__()
         self.setWindowTitle(APP_NAME)
         self.resize(1200, 800)
         self._settings = QSettings("CodeLearn", "CodeLearnStudio")
-        self._progress_path = Path(progress_path) if progress_path else default_progress_path()
-        self.tracker = ProgressTracker.load(self._progress_path)
+        self.repository = repository if repository is not None else default_repository()
+        self.tracker = self.repository.load(self._initial_student(student))
 
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
@@ -84,7 +103,13 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self, APP_NAME,
             f"<b>{APP_NAME}</b><br>Інтерактивне вивчення алгоритмів і структур даних.<br><br>"
-            "Лабораторна робота №2 з ООП.")
+            "Лабораторні роботи №1-3 з ООП.<br>"
+            f"Прогрес зберігається в {self._storage_description()}.")
+
+    def _storage_description(self) -> str:
+        if isinstance(self.repository, SqlProgressRepository):
+            return f"базі даних {self.repository.database.url}"
+        return "JSON-файлі"
 
     def _restore_settings(self):
         geometry = self._settings.value("geometry")
@@ -105,13 +130,42 @@ class MainWindow(QMainWindow):
         self.exercise_panel.refresh_list()
         self.statusBar().showMessage("Прогрес скинуто", 3000)
 
+    # ---------- студенти та прогрес ----------
+
+    def _initial_student(self, student: Optional[str]) -> str:
+        if student:
+            return student
+        saved = self._settings.value("student")
+        if saved and self.repository.has_student(saved):
+            return saved
+        students = self.repository.list_students()
+        return students[0] if students else DEFAULT_STUDENT
+
+    @property
+    def student_name(self) -> str:
+        return self.tracker.student_name
+
+    def switch_student(self, name: str) -> None:
+        """Зберігає прогрес поточного студента і завантажує прогрес іншого."""
+        if name == self.student_name:
+            return
+        self.save_progress()
+        self.tracker = self.repository.load(name)
+        self.exercise_panel.tracker = self.tracker
+        self.dashboard_panel.tracker = self.tracker
+        self.exercise_panel.refresh_list()
+        self.dashboard_panel.refresh()
+        self._settings.setValue("student", name)
+        self.statusBar().showMessage(f"Студент: {name}", 3000)
+
     def save_progress(self):
         try:
-            self.tracker.save(self._progress_path)
-        except OSError as error:
+            self.repository.save(self.tracker)
+        except Exception as error:  # OSError, SQLAlchemyError - GUI не повинен падати
             self.statusBar().showMessage(f"Не вдалося зберегти прогрес: {error}", 5000)
 
     def closeEvent(self, event):
         self._settings.setValue("geometry", self.saveGeometry())
         self._settings.setValue("tab", self.tabs.currentIndex())
+        self._settings.setValue("student", self.student_name)
         super().closeEvent(event)

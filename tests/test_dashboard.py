@@ -103,13 +103,40 @@ class TestDashboardPanel:
         assert empty.solved_card.value_label.text() == "0 / 7"
 
 
-def test_main_window_reset_saves_file(app, tmp_path):
+def test_main_window_reset_saves_to_repository(app):
     from src.gui.main_window import MainWindow
-    path = tmp_path / "p.json"
+    from src.database import Database, SqlProgressRepository
+    repo = SqlProgressRepository(Database())
     tracker = ProgressTracker("x")
     tracker.record_attempt("Максимальний елемент", result(100))
-    tracker.save(path)
-    window = MainWindow(progress_path=path)
+    repo.save(tracker)
+    window = MainWindow(repo, student="x")
     assert window.dashboard_panel.solved_card.value_label.text() == "1 / 7"
     window.dashboard_panel.reset_progress()
-    assert ProgressTracker.load(path).total_attempts() == 0
+    assert repo.load("x").total_attempts() == 0
+
+
+def test_main_window_switch_student(app):
+    from src.gui.main_window import MainWindow
+    from src.database import Database, SqlProgressRepository
+    repo = SqlProgressRepository(Database())
+    tracker = ProgressTracker("A")
+    tracker.record_attempt("Максимальний елемент", result(100))
+    repo.save(tracker)
+    repo.create_student("B")
+    window = MainWindow(repo, student="A")
+    window.switch_student("B")
+    assert window.student_name == "B"
+    assert window.exercise_panel.tracker is window.tracker
+    assert window.dashboard_panel.solved_card.value_label.text() == "0 / 7"
+    window.switch_student("A")
+    assert window.dashboard_panel.solved_card.value_label.text() == "1 / 7"
+
+
+def test_main_window_picks_existing_student(app):
+    from src.gui.main_window import MainWindow
+    from src.database import Database, SqlProgressRepository
+    repo = SqlProgressRepository(Database())
+    repo.create_student("Єдиний")
+    window = MainWindow(repo)
+    assert window.student_name in repo.list_students()
