@@ -16,7 +16,9 @@ from PyQt5.QtWidgets import (
 from src.core.achievements import ACHIEVEMENTS
 from src.core.analytics import ProgressTracker
 from src.core.exercise import CodeExercise
+from src.core.benchmark import INPUT_GENERATORS
 from src.core.knowledge_graph import AVAILABLE, LOCKED, MASTERED, KnowledgeGraph
+from src.gui.panels.benchmark_panel import display_name
 from src.gui.styles import Theme, LIGHT
 
 
@@ -213,6 +215,70 @@ class ActivityChart(FigureCanvasQTAgg):
         self.draw_idle()
 
 
+class BenchmarkHistoryChart(FigureCanvasQTAgg):
+    """Останні збережені заміри з вкладки «Порівняння»: середній час кожного алгоритму на найбільшому n."""
+
+    def __init__(self, parent=None):
+        self.figure = Figure(figsize=(7, 3), tight_layout=True)
+        super().__init__(self.figure)
+        self.setParent(parent)
+        self._theme = LIGHT
+        self.bars: List[Tuple[str, float, int]] = []
+
+    def set_theme(self, theme: Theme):
+        self._theme = theme
+
+    @staticmethod
+    def summarize(runs) -> Tuple[Optional[str], List[Tuple[str, float, int]]]:
+        """(тип вхідних даних, [(алгоритм, час у мс, n)]) для найсвіжішого типу вхідних даних.
+
+        Для кожного алгоритму береться найбільше n, а серед однакових n - найпізніший замір.
+        """
+        if not runs:
+            return None, []
+        latest = max(runs, key=lambda r: (r.timestamp, r.id or 0))
+        best = {}
+        for run in runs:
+            if run.input_kind != latest.input_kind:
+                continue
+            key = (run.size, run.timestamp, run.id or 0)
+            if run.algorithm not in best or key > best[run.algorithm][0]:
+                best[run.algorithm] = (key, run)
+        bars = [(display_name(name), run.mean_time * 1000, run.size) for name, (_, run) in best.items()]
+        return latest.input_kind, sorted(bars, key=lambda bar: bar[1])
+
+    def plot(self, runs):
+        t = self._theme
+        self.figure.clear()
+        self.figure.set_facecolor(t.surface)
+        ax = self.figure.add_subplot(1, 1, 1)
+        kind, self.bars = self.summarize(runs)
+        title = "Порівняння алгоритмів"
+        if kind is not None:
+            title += f" · {INPUT_GENERATORS[kind].title.lower() if kind in INPUT_GENERATORS else kind} масив"
+        _style_axes(ax, t, title, grid_axis="x")
+        if not self.bars:
+            ax.text(0.5, 0.5, "Ще немає замірів - запустіть їх у вкладці «Порівняння»", ha="center",
+                    va="center", color=t.muted, transform=ax.transAxes)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            self.draw_idle()
+            return
+        positions = list(range(len(self.bars)))
+        times = [ms for _, ms, _ in self.bars]
+        fastest = min(times)
+        ax.barh(positions, times, height=0.6,
+                color=[t.done if ms == fastest else t.accent for ms in times])
+        ax.set_yticks(positions)
+        ax.set_yticklabels([f"{name} (n={n})" for name, _, n in self.bars], fontsize=8, color=t.text)
+        ax.invert_yaxis()
+        for y, ms in zip(positions, times):
+            ax.text(ms, y, f"  {ms:.1f} мс", va="center", fontsize=8, color=t.muted)
+        ax.set_xlim(0, max(times) * 1.25)
+        ax.set_xlabel("Середній час, мс", color=t.muted, fontsize=8)
+        self.draw_idle()
+
+
 class DashboardPanel(QWidget):
     """Вкладка «Прогрес»: статистика, графіки і досягнення."""
 
@@ -220,11 +286,13 @@ class DashboardPanel(QWidget):
 
     def __init__(self, tracker: ProgressTracker, exercises: List[CodeExercise],
                  leaderboard: Optional[Callable[[], List[tuple]]] = None,
-                 knowledge_graph: Optional[KnowledgeGraph] = None, parent=None):
+                 knowledge_graph: Optional[KnowledgeGraph] = None,
+                 run_history: Optional[Callable[[], list]] = None, parent=None):
         super().__init__(parent)
         self.tracker = tracker
         self.exercises = exercises
         self._leaderboard = leaderboard
+        self._run_history = run_history
         self.knowledge_graph = knowledge_graph or KnowledgeGraph()
         self._build_ui()
         self.refresh()
@@ -301,6 +369,18 @@ class DashboardPanel(QWidget):
         board.setVisible(self._leaderboard is not None)
         self.sections.addTab(activity, "Активність і рейтинг")
 
+        # «Порівняння алгоритмів»: історія замірів з БД
+        history = QWidget()
+        history_layout = QVBoxLayout(history)
+        self.history_label = QLabel()
+        self.history_label.setObjectName("muted")
+        self.history_label.setWordWrap(True)
+        history_layout.addWidget(self.history_label)
+        self.history_chart = BenchmarkHistoryChart(self)
+        history_layout.addWidget(self.history_chart, stretch=1)
+        self.history_tab_index = self.sections.addTab(history, "Порівняння алгоритмів")
+        self.sections.setTabVisible(self.history_tab_index, self._run_history is not None)
+
     @property
     def exercise_titles(self) -> List[str]:
         return [e.title for e in self.exercises]
@@ -319,6 +399,7 @@ class DashboardPanel(QWidget):
         self.recommendation_label.setText(self.recommendation_text())
         self.activity_chart.plot(tracker)
         self._fill_leaderboard()
+        self._fill_history()
 
         self.achievements.clear()
         unlocked_count = 0
@@ -364,6 +445,23 @@ class DashboardPanel(QWidget):
                     item.setFont(font)
                 self.leaderboard_table.setItem(row, col, item)
 
+    def _fill_history(self):
+        if self._run_history is None:
+            return
+        try:
+            runs = self._run_history()
+        except Exception as error:  # збій БД не повинен ламати дашборд
+            self.history_label.setText(f"Історія замірів недоступна: {error}")
+            self.history_chart.plot([])
+            return
+        self.history_chart.plot(runs)
+        if self.history_chart.bars:
+            fastest = min(self.history_chart.bars, key=lambda bar: bar[1])[0]
+            self.history_label.setText(
+                f"Збережених замірів: {len(runs)} · найшвидший в останньому порівнянні: {fastest}")
+        else:
+            self.history_label.setText("Збережених замірів поки немає.")
+
     def reset_progress(self):
         self.tracker.completed_exercises.clear()
         self.tracker.total_time = 0.0
@@ -377,6 +475,6 @@ class DashboardPanel(QWidget):
             self.reset_progress()
 
     def set_theme(self, theme: Theme):
-        for chart in (self.chart, self.knowledge_chart, self.activity_chart):
+        for chart in (self.chart, self.knowledge_chart, self.activity_chart, self.history_chart):
             chart.set_theme(theme)
         self.refresh()

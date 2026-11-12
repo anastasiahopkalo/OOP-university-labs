@@ -147,7 +147,7 @@ class TestDashboardLab3:
         from src.gui.panels.dashboard_panel import DashboardPanel
         panel = DashboardPanel(ProgressTracker("Настя"), default_exercises())
         titles = [panel.sections.tabText(i) for i in range(panel.sections.count())]
-        assert titles == ["Результати", "Граф знань", "Активність і рейтинг"]
+        assert titles == ["Результати", "Граф знань", "Активність і рейтинг", "Порівняння алгоритмів"]
         assert "Настя" in panel.title_label.text()
 
     def test_knowledge_graph_and_recommendation(self, app):
@@ -210,3 +210,73 @@ class TestDashboardLab3:
         panel = DashboardPanel(ProgressTracker("x"), default_exercises())
         panel.set_theme(DARK)
         assert panel.knowledge_chart.status_colors()["mastered"] == DARK.done
+
+
+class TestBenchmarkHistory:
+    @staticmethod
+    def run(algorithm, size, ms, kind="random", minute=0, run_id=None):
+        from datetime import datetime
+        from src.database import AlgorithmRun
+        return AlgorithmRun(id=run_id, algorithm=algorithm, input_kind=kind, size=size,
+                            mean_time=ms / 1000, timestamp=datetime(2026, 11, 12, 10, minute))
+
+    def test_summarize_takes_latest_kind_and_largest_n(self):
+        from src.gui.panels.dashboard_panel import BenchmarkHistoryChart
+        runs = [
+            self.run("BubbleSort", 100, 5, minute=1),
+            self.run("BubbleSort", 800, 290, minute=1),
+            self.run("MergeSort", 800, 9, minute=1),
+            self.run("MergeSort", 800, 7, minute=5),              # той самий n, новіший замір
+            self.run("QuickSort", 5000, 1, kind="sorted", minute=0),  # старіший тип даних
+        ]
+        kind, bars = BenchmarkHistoryChart.summarize(runs)
+        assert kind == "random"
+        assert bars == [("Merge Sort", pytest.approx(7), 800), ("Bubble Sort", pytest.approx(290), 800)]
+        assert BenchmarkHistoryChart.summarize([]) == (None, [])
+
+    def test_section_hidden_without_history(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+        panel = DashboardPanel(ProgressTracker("x"), default_exercises())
+        assert not panel.sections.isTabVisible(panel.history_tab_index)
+
+    def test_section_with_runs(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+        runs = [self.run("QuickSort", 500, 3), self.run("HeapSort", 500, 6)]
+        panel = DashboardPanel(ProgressTracker("x"), default_exercises(), run_history=lambda: runs)
+        assert panel.sections.isTabVisible(panel.history_tab_index)
+        assert panel.sections.tabText(panel.history_tab_index) == "Порівняння алгоритмів"
+        assert "Quick Sort" in panel.history_label.text()
+        assert "2" in panel.history_label.text()
+        panel.set_theme(DARK)
+
+    def test_empty_and_error(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+        panel = DashboardPanel(ProgressTracker("x"), default_exercises(), run_history=lambda: [])
+        assert panel.history_label.text() == "Збережених замірів поки немає."
+
+        def broken():
+            raise RuntimeError("db down")
+        panel = DashboardPanel(ProgressTracker("x"), default_exercises(), run_history=broken)
+        assert "db down" in panel.history_label.text()
+
+
+def test_benchmark_results_reach_dashboard(app, make_db):
+    from src.gui.main_window import MainWindow
+    from src.database import SqlProgressRepository
+    window = MainWindow(SqlProgressRepository(make_db()), student="Настя")
+    assert window.dashboard_panel.history_label.text() == "Збережених замірів поки немає."
+    bench = window.benchmark_panel
+    bench.set_selected_algorithms(["Merge Sort", "Quick Sort"])
+    bench.min_size.setValue(10)
+    bench.max_size.setValue(20)
+    bench.points.setValue(2)
+    bench.repeats.setValue(1)
+    bench.start()
+    assert bench.wait()
+    app.processEvents()
+    assert "Збережених замірів: 4" in window.dashboard_panel.history_label.text()
+    assert {name for name, _, _ in window.dashboard_panel.history_chart.bars} == {"Merge Sort", "Quick Sort"}
+    # в іншого студента своя історія
+    window.repository.create_student("Даніїл")
+    window.switch_student("Даніїл")
+    assert window.dashboard_panel.history_label.text() == "Збережених замірів поки немає."

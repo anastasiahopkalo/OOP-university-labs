@@ -75,7 +75,11 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.exercise_panel, "💻 Вправи")
         leaderboard = (self.repository.leaderboard
                        if isinstance(self.repository, SqlProgressRepository) else None)
-        self.dashboard_panel = DashboardPanel(self.tracker, self.exercise_panel.exercises, leaderboard)
+        run_history = ((lambda: runs.history(student_name=self.student_name)) if runs is not None else None)
+        self.dashboard_panel = DashboardPanel(self.tracker, self.exercise_panel.exercises, leaderboard,
+                                              run_history=run_history)
+        # нові заміри з вкладки «Порівняння» одразу з'являються на дашборді
+        self.benchmark_panel.resultsSaved.connect(lambda _count: self.dashboard_panel.refresh())
         self.dashboard_panel.progressReset.connect(self._on_progress_reset)
         self.tabs.addTab(self.dashboard_panel, "📈 Прогрес")
 
