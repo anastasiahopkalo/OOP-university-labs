@@ -140,3 +140,73 @@ def test_main_window_picks_existing_student(app, make_db):
     repo.create_student("Єдиний")
     window = MainWindow(repo)
     assert window.student_name in repo.list_students()
+
+
+class TestDashboardLab3:
+    def test_sections(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+        panel = DashboardPanel(ProgressTracker("Настя"), default_exercises())
+        titles = [panel.sections.tabText(i) for i in range(panel.sections.count())]
+        assert titles == ["Результати", "Граф знань", "Активність і рейтинг"]
+        assert "Настя" in panel.title_label.text()
+
+    def test_knowledge_graph_and_recommendation(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+        tracker = ProgressTracker("x")
+        panel = DashboardPanel(tracker, default_exercises())
+        assert "Масиви" in panel.recommendation_label.text()
+        assert set(panel.knowledge_chart.positions) == set(panel.knowledge_graph.graph.nodes)
+        tracker.record_attempt("Максимальний елемент", result(100))
+        tracker.record_attempt("Розворот списку", result(100))
+        panel.refresh()
+        assert "Бінарний пошук" in panel.recommendation_label.text()
+
+    def test_recommendation_when_all_solved(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+        tracker = ProgressTracker("x")
+        for e in default_exercises():
+            tracker.record_attempt(e.title, result(100))
+        panel = DashboardPanel(tracker, default_exercises())
+        assert "Вправи всіх доступних тем розв'язано" in panel.recommendation_label.text()
+
+    def test_activity_series(self):
+        from datetime import date, datetime
+        from src.gui.panels.dashboard_panel import ActivityChart
+        tracker = ProgressTracker("x")
+        tracker.record_attempt("A", result(10), datetime(2026, 11, 10, 9))
+        tracker.record_attempt("A", result(20), datetime(2026, 11, 10, 10))
+        tracker.record_attempt("A", result(30), datetime(2026, 10, 1, 10))  # поза вікном
+        data = ActivityChart.series(tracker, today=date(2026, 11, 12))
+        assert len(data) == 14
+        assert data[-1] == (date(2026, 11, 12), 0)
+        assert dict(data)[date(2026, 11, 10)] == 2
+        assert sum(count for _, count in data) == 2
+
+    def test_leaderboard(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+        rows = [("Настя", 300, 5), ("x", 100, 2)]
+        panel = DashboardPanel(ProgressTracker("x"), default_exercises(), leaderboard=lambda: rows)
+        table = panel.leaderboard_table
+        assert table.rowCount() == 2
+        assert [table.item(0, c).text() for c in range(4)] == ["1", "Настя", "300", "5"]
+        assert table.item(1, 1).font().bold()  # поточний студент виділений
+
+    def test_leaderboard_hidden_without_database(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+        panel = DashboardPanel(ProgressTracker("x"), default_exercises())
+        assert panel.leaderboard_table.rowCount() == 0
+        assert panel.leaderboard_table.parentWidget().isHidden()
+
+    def test_leaderboard_error(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+
+        def broken():
+            raise RuntimeError("db down")
+        panel = DashboardPanel(ProgressTracker("x"), default_exercises(), leaderboard=broken)
+        assert "db down" in panel.leaderboard_title.text()
+
+    def test_dark_theme(self, app):
+        from src.gui.panels.dashboard_panel import DashboardPanel
+        panel = DashboardPanel(ProgressTracker("x"), default_exercises())
+        panel.set_theme(DARK)
+        assert panel.knowledge_chart.status_colors()["mastered"] == DARK.done

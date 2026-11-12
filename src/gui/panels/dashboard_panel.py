@@ -1,16 +1,22 @@
-from typing import List, Optional
+from datetime import date, timedelta
+from typing import Callable, List, Optional, Tuple
+
+import networkx as nx
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QListWidget, QListWidgetItem,
-    QPushButton, QMessageBox
+    QPushButton, QMessageBox, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView,
+    QAbstractItemView
 )
 
 from src.core.achievements import ACHIEVEMENTS
 from src.core.analytics import ProgressTracker
 from src.core.exercise import CodeExercise
+from src.core.knowledge_graph import AVAILABLE, LOCKED, MASTERED, KnowledgeGraph
 from src.gui.styles import Theme, LIGHT
 
 
@@ -92,24 +98,143 @@ class ProgressChart(FigureCanvasQTAgg):
         self.draw_idle()
 
 
+def _style_axes(ax, theme: Theme, title: str, grid_axis: str = "y"):
+    ax.set_facecolor(theme.surface)
+    ax.set_title(title, color=theme.text, fontsize=10, loc="left")
+    ax.tick_params(colors=theme.muted, labelsize=8)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(theme.border)
+    ax.grid(axis=grid_axis, color=theme.border, linewidth=0.6, alpha=0.7)
+    ax.set_axisbelow(True)
+
+
+class KnowledgeGraphChart(FigureCanvasQTAgg):
+    """Граф знань, намальований networkx на полотні matplotlib (рівні - зліва направо)."""
+
+    def __init__(self, parent=None):
+        self.figure = Figure(figsize=(8, 3.6), tight_layout=True)
+        super().__init__(self.figure)
+        self.setParent(parent)
+        self._theme = LIGHT
+        self.positions = {}
+
+    def set_theme(self, theme: Theme):
+        self._theme = theme
+
+    def status_colors(self) -> dict:
+        t = self._theme
+        return {MASTERED: t.done, AVAILABLE: t.accent, LOCKED: t.border}
+
+    def plot(self, kg: KnowledgeGraph, tracker: ProgressTracker):
+        t = self._theme
+        self.figure.clear()
+        self.figure.set_facecolor(t.surface)
+        ax = self.figure.add_subplot(1, 1, 1)
+        ax.set_facecolor(t.surface)
+        ax.set_axis_off()
+
+        graph = kg.graph.copy()
+        for level, keys in enumerate(kg.levels()):
+            for key in keys:
+                graph.nodes[key]["level"] = level
+        self.positions = nx.multipartite_layout(graph, subset_key="level")
+        statuses = kg.statuses(tracker)
+        colors = self.status_colors()
+        nodes = list(graph.nodes)
+
+        nx.draw_networkx_edges(graph, self.positions, ax=ax, edge_color=t.muted, width=1.2,
+                               arrows=True, arrowsize=12, node_size=3300, alpha=0.7)
+        nx.draw_networkx_nodes(graph, self.positions, ax=ax, nodelist=nodes, node_size=3300,
+                               node_shape="o", node_color=[colors[statuses[k]] for k in nodes],
+                               edgecolors=t.border, linewidths=1)
+        labels = {}
+        for key in nodes:
+            topic = kg.topic(key)
+            title = topic.title.replace(" ", "\n")
+            if topic.is_theory:
+                labels[key] = title
+            else:
+                done, total = kg.topic_progress(key, tracker)
+                labels[key] = f"{title}\n{done}/{total}"
+        label_colors = {MASTERED: "#ffffff", AVAILABLE: "#ffffff", LOCKED: t.text}
+        for status in (MASTERED, AVAILABLE, LOCKED):
+            subset = {k: v for k, v in labels.items() if statuses[k] == status}
+            nx.draw_networkx_labels(graph, self.positions, labels=subset, ax=ax, font_size=6.5,
+                                    font_color=label_colors[status])
+        ax.margins(0.08, 0.15)
+        handles = [Line2D([], [], marker="o", linestyle="", markersize=9, color=colors[s], label=label)
+                   for s, label in ((MASTERED, "пройдено"), (AVAILABLE, "доступно"),
+                                    (LOCKED, "заблоковано"))]
+        legend = ax.legend(handles=handles, loc="lower left", fontsize=8, frameon=False, ncol=3)
+        for text in legend.get_texts():
+            text.set_color(t.text)
+        self.draw_idle()
+
+
+class ActivityChart(FigureCanvasQTAgg):
+    """Кількість спроб за кожен з останніх днів (стовпчики matplotlib)."""
+
+    DAYS = 14
+
+    def __init__(self, parent=None):
+        self.figure = Figure(figsize=(6, 3), tight_layout=True)
+        super().__init__(self.figure)
+        self.setParent(parent)
+        self._theme = LIGHT
+
+    def set_theme(self, theme: Theme):
+        self._theme = theme
+
+    @classmethod
+    def series(cls, tracker: ProgressTracker, today: Optional[date] = None) -> List[Tuple[date, int]]:
+        today = today or date.today()
+        activity = tracker.daily_activity()
+        days = [today - timedelta(days=i) for i in range(cls.DAYS - 1, -1, -1)]
+        return [(day, activity.get(day, 0)) for day in days]
+
+    def plot(self, tracker: ProgressTracker, today: Optional[date] = None):
+        t = self._theme
+        self.figure.clear()
+        self.figure.set_facecolor(t.surface)
+        ax = self.figure.add_subplot(1, 1, 1)
+        _style_axes(ax, t, f"Активність за {self.DAYS} днів")
+        data = self.series(tracker, today)
+        values = [count for _, count in data]
+        positions = list(range(len(data)))
+        ax.bar(positions, values, color=[t.accent if v else t.border for v in values], width=0.7)
+        ax.set_xticks(positions)
+        ax.set_xticklabels([day.strftime("%d.%m") for day, _ in data], rotation=45, fontsize=7,
+                           color=t.muted)
+        ax.set_ylim(0, max(values + [3]) + 1)
+        ax.yaxis.get_major_locator().set_params(integer=True)
+        ax.set_ylabel("Спроб", color=t.muted, fontsize=8)
+        self.draw_idle()
+
+
 class DashboardPanel(QWidget):
     """Вкладка «Прогрес»: статистика, графіки і досягнення."""
 
     progressReset = pyqtSignal()
 
-    def __init__(self, tracker: ProgressTracker, exercises: List[CodeExercise], parent=None):
+    def __init__(self, tracker: ProgressTracker, exercises: List[CodeExercise],
+                 leaderboard: Optional[Callable[[], List[tuple]]] = None,
+                 knowledge_graph: Optional[KnowledgeGraph] = None, parent=None):
         super().__init__(parent)
         self.tracker = tracker
         self.exercises = exercises
+        self._leaderboard = leaderboard
+        self.knowledge_graph = knowledge_graph or KnowledgeGraph()
         self._build_ui()
         self.refresh()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
         header = QHBoxLayout()
-        title = QLabel("Прогрес")
-        title.setObjectName("title")
-        header.addWidget(title)
+        self.title_label = QLabel("Прогрес")
+        self.title_label.setObjectName("title")
+        header.addWidget(self.title_label)
         header.addStretch()
         self.reset_btn = QPushButton("Скинути прогрес")
         self.reset_btn.clicked.connect(self._confirm_reset)
@@ -127,14 +252,54 @@ class DashboardPanel(QWidget):
             cards.addWidget(card)
         layout.addLayout(cards)
 
-        self.chart = ProgressChart(self)
-        layout.addWidget(self.chart, stretch=2)
+        self.sections = QTabWidget()
+        layout.addWidget(self.sections, stretch=1)
 
+        # «Результати»: бали і досягнення
+        results = QWidget()
+        results_layout = QVBoxLayout(results)
+        self.chart = ProgressChart(self)
+        results_layout.addWidget(self.chart, stretch=2)
         self.achievements_title = QLabel()
-        layout.addWidget(self.achievements_title)
+        results_layout.addWidget(self.achievements_title)
         self.achievements = QListWidget()
         self.achievements.setMaximumHeight(170)
-        layout.addWidget(self.achievements)
+        results_layout.addWidget(self.achievements)
+        self.sections.addTab(results, "Результати")
+
+        # «Граф знань»: теми курсу і рекомендація
+        knowledge = QWidget()
+        knowledge_layout = QVBoxLayout(knowledge)
+        self.recommendation_label = QLabel()
+        self.recommendation_label.setWordWrap(True)
+        knowledge_layout.addWidget(self.recommendation_label)
+        self.knowledge_chart = KnowledgeGraphChart(self)
+        knowledge_layout.addWidget(self.knowledge_chart, stretch=1)
+        self.sections.addTab(knowledge, "Граф знань")
+
+        # «Активність і рейтинг»
+        activity = QWidget()
+        activity_layout = QHBoxLayout(activity)
+        self.activity_chart = ActivityChart(self)
+        activity_layout.addWidget(self.activity_chart, stretch=3)
+        board = QWidget()
+        board_layout = QVBoxLayout(board)
+        board_layout.setContentsMargins(0, 0, 0, 0)
+        self.leaderboard_title = QLabel("Рейтинг студентів")
+        board_layout.addWidget(self.leaderboard_title)
+        self.leaderboard_table = QTableWidget(0, 4)
+        self.leaderboard_table.setHorizontalHeaderLabels(["#", "Студент", "Бали", "Спроб"])
+        self.leaderboard_table.verticalHeader().setVisible(False)
+        self.leaderboard_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.leaderboard_table.setSelectionMode(QAbstractItemView.NoSelection)
+        header_view = self.leaderboard_table.horizontalHeader()
+        header_view.setMinimumSectionSize(40)
+        header_view.setSectionResizeMode(QHeaderView.ResizeToContents)
+        header_view.setSectionResizeMode(1, QHeaderView.Stretch)
+        board_layout.addWidget(self.leaderboard_table)
+        activity_layout.addWidget(board, stretch=2)
+        board.setVisible(self._leaderboard is not None)
+        self.sections.addTab(activity, "Активність і рейтинг")
 
     @property
     def exercise_titles(self) -> List[str]:
@@ -148,7 +313,12 @@ class DashboardPanel(QWidget):
         self.average_card.set_value(f"{tracker.average_score():.0f}")
         self.success_card.set_value(f"{tracker.success_rate() * 100:.0f}%")
         self.streak_card.set_value(f"🔥 {tracker.streak_days()}")
+        self.title_label.setText(f"Прогрес · {tracker.student_name}")
         self.chart.plot(tracker, self.exercise_titles)
+        self.knowledge_chart.plot(self.knowledge_graph, tracker)
+        self.recommendation_label.setText(self.recommendation_text())
+        self.activity_chart.plot(tracker)
+        self._fill_leaderboard()
 
         self.achievements.clear()
         unlocked_count = 0
@@ -161,6 +331,38 @@ class DashboardPanel(QWidget):
                 item.setFlags(item.flags() & ~Qt.ItemIsEnabled)
             self.achievements.addItem(item)
         self.achievements_title.setText(f"Досягнення: {unlocked_count} з {len(ACHIEVEMENTS)}")
+
+    def recommendation_text(self) -> str:
+        topic = self.knowledge_graph.next_recommended(self.tracker)
+        if topic is None:
+            return "Усі теми пройдено 🎓"
+        if topic.is_theory:
+            return (f"Вправи всіх доступних тем розв'язано. Рекомендовано далі: <b>{topic.title}</b> "
+                    f"(вкладка «{topic.tab}»)")
+        done, total = self.knowledge_graph.topic_progress(topic.key, self.tracker)
+        left = [t for t in topic.exercises if t not in self.tracker.solved_exercises()]
+        return (f"Рекомендовано далі: <b>{topic.title}</b> ({done}/{total}) · "
+                f"вправи: {', '.join(left)} · теорія у вкладці «{topic.tab}»")
+
+    def _fill_leaderboard(self):
+        if self._leaderboard is None:
+            return
+        try:
+            rows = self._leaderboard()
+        except Exception as error:  # збій БД не повинен ламати дашборд
+            self.leaderboard_title.setText(f"Рейтинг недоступний: {error}")
+            return
+        self.leaderboard_title.setText("Рейтинг студентів")
+        self.leaderboard_table.setRowCount(len(rows))
+        for row, (name, score, attempts) in enumerate(rows):
+            cells = [str(row + 1), name, str(score), str(attempts)]
+            for col, text in enumerate(cells):
+                item = QTableWidgetItem(text)
+                if name == self.tracker.student_name:
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
+                self.leaderboard_table.setItem(row, col, item)
 
     def reset_progress(self):
         self.tracker.completed_exercises.clear()
@@ -175,5 +377,6 @@ class DashboardPanel(QWidget):
             self.reset_progress()
 
     def set_theme(self, theme: Theme):
-        self.chart.set_theme(theme)
+        for chart in (self.chart, self.knowledge_chart, self.activity_chart):
+            chart.set_theme(theme)
         self.refresh()
